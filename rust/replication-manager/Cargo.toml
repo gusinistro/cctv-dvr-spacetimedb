@@ -1,0 +1,39 @@
+[package]
+name = "replication-manager"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1.35", features = ["full"] }
+tonic = "0.10"
+tonic-build = "0.10"
+prost = "0.12"
+prost-types = "0.12"
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9"
+serde_json = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+anyhow = "1.0"
+thiserror = "1.0"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+tokio-util = { version = "0.7", features = ["codec"] }
+bytes = "1.5"
+sha2 = "0.10"
+base64 = "0.21"
+dashmap = "5.5"
+metrics = "0.21"
+metrics-prometheus = "0.12"
+ringbuffer = "0.15"
+backoff = { version = "0.4", features = ["tokio"] }
+rusoto_core = "0.48"
+rusoto_s3 = "0.48"
+rusoto_credential = "0.48"
+flate2 = "1.0"
+tar = "0.4"
+hyper = "0.14"
+
+[[bin]]
+name = "replication-server"
+path = "src/bin/server.rs"
