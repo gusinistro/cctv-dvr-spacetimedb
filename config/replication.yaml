@@ -1,0 +1,116 @@
+# SpacetimeDB Replication Configuration
+# Local + Remote Backup Setup
+
+replication:
+  # Replication mode: "synchronous", "asynchronous", or "hybrid"
+  # - synchronous: Wait for all remotes to acknowledge
+  # - asynchronous: Commit locally, sync remotes in background
+  # - hybrid: Critical tables sync, others async
+  mode: "hybrid"
+  
+  # Batch configuration
+  batch_size: 500              # Maximum events per batch
+  batch_timeout_ms: 100        # Flush if batch not full after this time
+
+local_backup:
+  # Local backup directory
+  backup_dir: "/opt/spacetimedb/backups"
+  
+  # Compression settings
+  compression: true
+  compression_format: "gzip"   # gzip or zstd
+  
+  # Automatic backup interval (seconds)
+  interval_secs: 3600          # 1 hour
+  
+  # Retention policy
+  retention_days: 30           # Keep 30 days of local backups
+
+backups:
+  # Primary remote backup (AWS S3)
+  - name: "aws-s3-primary"
+    backup_type: "s3"
+    enabled: true
+    priority: 1
+    connection:
+      endpoint: "s3://cctv-backups-primary/spacetimedb"
+      tls: true
+      timeout_secs: 30
+      credentials:
+        access_key: "${AWS_ACCESS_KEY_ID}"
+        secret_key: "${AWS_SECRET_ACCESS_KEY}"
+        region: "us-east-1"
+    sync_interval_secs: 300    # 5 minutes
+
+  # Secondary remote backup (Azure Blob Storage)
+  - name: "azure-blob-secondary"
+    backup_type: "s3"          # Azure S3-compatible API
+    enabled: true
+    priority: 2
+    connection:
+      endpoint: "https://cctvbackup.blob.core.windows.net/spacetimedb"
+      tls: true
+      timeout_secs: 30
+      credentials:
+        access_key: "${AZURE_STORAGE_ACCOUNT}"
+        secret_key: "${AZURE_STORAGE_KEY}"
+        region: "eastus"
+    sync_interval_secs: 300
+
+  # Tertiary backup (On-premises NFS)
+  - name: "local-nfs-tertiary"
+    backup_type: "nfs"
+    enabled: true
+    priority: 3
+    connection:
+      endpoint: "nfs://backup-server.local:/exports/spacetimedb"
+      tls: false
+      timeout_secs: 15
+    sync_interval_secs: 600    # 10 minutes
+
+health_check:
+  # Health check interval (seconds)
+  interval_secs: 5
+  
+  # Health check timeout (seconds)
+  timeout_secs: 10
+  
+  # Mark unhealthy after N missed heartbeats
+  missed_heartbeats_threshold: 3
+
+failover:
+  # Automatic failover to backup if primary fails
+  auto_promote: true
+  
+  # Failover timeout (seconds)
+  timeout_secs: 120
+  
+  # Maximum failover attempts
+  max_attempts: 3
+
+retention:
+  # Local backup retention (days)
+  local_backups_days: 30
+  
+  # Remote backup retention (days)
+  remote_backups_days: 90
+  
+  # Compress backups older than N days
+  compress_after_days: 7
+
+# Tables that require synchronous replication (for hybrid mode)
+critical_tables:
+  - "anomaly_events"           # High-severity anomalies
+  - "security_alerts"          # Security-related events
+  - "person_tracks"            # Important person tracking
+  - "vehicle_tracks"           # Vehicle tracking data
+
+# Logging configuration
+logging:
+  level: "info"                # debug, info, warn, error
+  format: "json"               # json or text
+  output: "file"               # stdout, file, or both
+  file_path: "/var/log/spacetimedb/replication.log"
+  max_size_mb: 100
+  max_backups: 10
+  max_age_days: 30
