@@ -1,0 +1,5 @@
+numpy>=1.26,<3
+onnx>=1.16,<2
+opencv-python>=4.9,<5
+onnxruntime>=1.17,<2
+pytesseract>=0.3,<1

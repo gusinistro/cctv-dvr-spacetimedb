@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "execution": "local-only",
+  "noRawVideoUpload": true,
+  "packs": [
+    { "id": "objects", "task": "object_detection", "format": "onnx", "path": "model-packs/objects.onnx", "labels": ["person", "vehicle", "package"], "required": true, "reviewRequired": true },
+    { "id": "ocr", "task": "ocr", "format": "tesseract_or_onnx", "required": true, "reviewRequired": true },
+    { "id": "plates", "task": "license_plate", "format": "onnx", "path": "model-packs/plates.onnx", "labels": ["license_plate"], "required": true, "reviewRequired": true },
+    { "id": "activities", "task": "activity_recognition", "format": "onnx_temporal", "path": "model-packs/activities.onnx", "labels": ["walking", "running", "falling", "intrusion"], "required": true, "reviewRequired": true },
+    { "id": "anomaly", "task": "anomaly_detection", "format": "onnx_or_baseline", "required": true, "reviewRequired": true },
+    { "id": "faces", "task": "face_embedding_match", "format": "onnx", "path": "model-packs/faces.onnx", "required": false, "consentRequired": true, "reviewRequired": true },
+    { "id": "emotion", "task": "affective_signal_estimation", "format": "onnx", "path": "model-packs/emotion.onnx", "labels": ["neutral", "positive", "negative"], "required": false, "consentRequired": true, "reviewRequired": true }
+  ]
+}
