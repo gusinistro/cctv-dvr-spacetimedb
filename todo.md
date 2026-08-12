@@ -67,6 +67,8 @@
 - [ ] Documentar no repositório a tag executada, as validações, os artefatos gerados e limitações observadas.
 - [ ] Corrigir o conflito de versão do pnpm na esteira de release e repetir a execução por tag.
 - [ ] Provisionar a CLI SpacetimeDB na validação contínua e repetir a release versionada.
+- [ ] Adicionar os ícones nativos obrigatórios ao pacote desktop e validar a distribuição Windows.
+- [ ] Alinhar os manifestos web e desktop ao número da primeira release de produção validada.
 - [x] Avaliar e corrigir vulnerabilidades transitivas de produção com atualização compatível, validação integral e registro de impacto.
 - [x] Corrigir a regressão `pathRegexp is not a function` introduzida pela atualização de segurança e revalidar o servidor de desenvolvimento.
 - [ ] Validar o produto ampliado e publicar a evolução profissional no GitHub.
