@@ -1,0 +1,13 @@
+{
+  "name": "spacevision-dvr-module",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "description": "Módulo SpacetimeDB para o SpaceVision DVR.",
+  "dependencies": {
+    "spacetimedb": "^2.8.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

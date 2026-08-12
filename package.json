@@ -10,7 +10,10 @@
     "check": "tsc --noEmit",
     "format": "prettier --write .",
     "test": "vitest run",
-    "db:push": "drizzle-kit generate && drizzle-kit migrate"
+    "db:push": "drizzle-kit generate && drizzle-kit migrate",
+    "spacetime:local": "spacetime start --listen-addr 127.0.0.1:3001 --data-dir .spacetimedb/local --non-interactive",
+    "spacetime:publish-local": "spacetime publish --server http://127.0.0.1:3001 --anonymous --yes --module-path spacetimedb --build-options='--lint-dir=' spacevision-dvr-local",
+    "spacetime:bindings": "spacetime generate --lang typescript --out-dir client/src/lib/spacetimedb-bindings --module-path spacetimedb --build-options='--lint-dir='"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.693.0",
@@ -59,6 +62,7 @@
     "framer-motion": "^12.23.22",
     "input-otp": "^1.4.2",
     "jose": "6.1.0",
+    "jspdf": "^4.2.1",
     "lucide-react": "^0.453.0",
     "mysql2": "^3.15.0",
     "nanoid": "^5.1.5",
@@ -70,6 +74,7 @@
     "react-resizable-panels": "^3.0.6",
     "recharts": "^2.15.2",
     "sonner": "^2.0.7",
+    "spacetimedb": "^2.8.0",
     "streamdown": "^1.4.0",
     "superjson": "^1.13.3",
     "tailwind-merge": "^3.3.1",
