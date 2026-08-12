@@ -66,6 +66,7 @@
 - [ ] Executar e verificar uma release real por tag, incluindo notas geradas e artefatos desktop publicados.
 - [ ] Documentar no repositório a tag executada, as validações, os artefatos gerados e limitações observadas.
 - [ ] Corrigir o conflito de versão do pnpm na esteira de release e repetir a execução por tag.
+- [ ] Provisionar a CLI SpacetimeDB na validação contínua e repetir a release versionada.
 - [x] Avaliar e corrigir vulnerabilidades transitivas de produção com atualização compatível, validação integral e registro de impacto.
 - [x] Corrigir a regressão `pathRegexp is not a function` introduzida pela atualização de segurança e revalidar o servidor de desenvolvimento.
 - [ ] Validar o produto ampliado e publicar a evolução profissional no GitHub.

@@ -25,6 +25,11 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      - name: Install SpacetimeDB CLI
+        run: |
+          curl -sSf https://install.spacetimedb.com | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/spacetime" version
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Validate web and security
