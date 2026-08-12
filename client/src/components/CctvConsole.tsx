@@ -9,11 +9,11 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { startLogin } from "@/const";
-import { canManage, filterEvents } from "@/lib/cctv/access";
+import { can, filterEvents } from "@/lib/cctv/access";
 import { guardCommands } from "@/lib/cctv/roleGuard";
 import { useCctv } from "@/lib/cctv/useCctv";
 import { buildCsvContent, buildPdfRows } from "@/lib/cctv/reporting";
-import type { Camera, CameraInput, EventFilters, RetentionPolicy, SystemEvent, UserRole } from "@/lib/cctv/types";
+import type { Camera, CameraInput, EventFilters, Installation, InstallationInput, OperationalCapability, RetentionPolicy, SystemEvent, UserRole } from "@/lib/cctv/types";
 import { CctvFrame } from "./CctvFrame";
 
 type Screen = "monitor" | "events" | "cameras" | "config" | "reports";
@@ -27,12 +27,12 @@ const screenLabels: Record<Screen, string> = {
   reports: "Relatórios",
 };
 
-const nav: { key: Screen; label: string; icon: typeof LayoutGrid; admin?: boolean }[] = [
+const nav: { key: Screen; label: string; icon: typeof LayoutGrid; capability?: OperationalCapability }[] = [
   { key: "monitor", label: "Monitoramento", icon: LayoutGrid },
   { key: "events", label: "Eventos", icon: BellRing },
-  { key: "cameras", label: "Câmeras", icon: CameraIcon, admin: true },
-  { key: "config", label: "Configurações", icon: Settings2, admin: true },
-  { key: "reports", label: "Relatórios", icon: FileText },
+  { key: "cameras", label: "Câmeras", icon: CameraIcon, capability: "manage_cameras" },
+  { key: "config", label: "Configurações", icon: Settings2, capability: "manage_retention" },
+  { key: "reports", label: "Relatórios", icon: FileText, capability: "export" },
 ];
 
 const initialFilters: EventFilters = { cameraId: "all", eventType: "all", from: "", to: "" };
@@ -105,8 +105,12 @@ function EventMark({ event }: { event: SystemEvent }) {
 
 export default function CctvConsole() {
   const { user, isAuthenticated, loading } = useAuth();
-  const role: UserRole = user?.role === "admin" ? "admin" : "viewer";
-  const isAdmin = canManage(role);
+  const requestedRole = String(user?.role ?? "viewer");
+  const role: UserRole = ["admin", "operator", "auditor", "technician", "viewer"].includes(requestedRole) ? requestedRole as UserRole : "viewer";
+  const canManageCameras = can(role, "manage_cameras");
+  const canManageRetention = can(role, "manage_retention");
+  const canAcknowledge = can(role, "acknowledge");
+  const canExport = can(role, "export");
   const { snapshot, commands } = useCctv();
   const [screen, setScreen] = useState<Screen>("monitor");
   const [grid, setGrid] = useState<GridSize>(4);
@@ -115,12 +119,18 @@ export default function CctvConsole() {
   const [progress, setProgress] = useState(36);
   const [filters, setFilters] = useState<EventFilters>(initialFilters);
   const [cameraModal, setCameraModal] = useState<Camera | "new" | null>(null);
+  const [installationModal, setInstallationModal] = useState<Installation | "new" | null>(null);
+  const [selectedInstallationId, setSelectedInstallationId] = useState(0);
   const [retentionCamera, setRetentionCamera] = useState(1);
   const protectedCommands = useMemo(() => guardCommands(role, commands), [role, commands]);
 
   useEffect(() => {
-    if (!isAdmin && (screen === "cameras" || screen === "config")) setScreen("monitor");
-  }, [isAdmin, screen]);
+    if ((screen === "cameras" && !canManageCameras) || (screen === "config" && !canManageRetention) || (screen === "reports" && !canExport)) setScreen("monitor");
+  }, [canExport, canManageCameras, canManageRetention, screen]);
+
+  useEffect(() => {
+    if (!selectedInstallationId && snapshot.installations.length) setSelectedInstallationId(snapshot.installations[0].id);
+  }, [selectedInstallationId, snapshot.installations]);
 
   useEffect(() => {
     if (!playing) return;
@@ -128,10 +138,14 @@ export default function CctvConsole() {
     return () => window.clearInterval(interval);
   }, [playing]);
 
-  const selectedCamera = snapshot.cameras.find((camera) => camera.id === selectedCameraId) ?? snapshot.cameras[0];
-  const activeCameras = snapshot.cameras.filter((camera) => camera.status === "online").length;
-  const filteredEvents = useMemo(() => filterEvents(snapshot.events, filters), [snapshot.events, filters]);
-  const displayedCameras = Array.from({ length: grid }, (_, index) => snapshot.cameras[index % Math.max(snapshot.cameras.length, 1)]).filter(Boolean);
+  const selectedInstallation = snapshot.installations.find((installation) => installation.id === selectedInstallationId) ?? snapshot.installations[0];
+  const scopedCameras = snapshot.cameras.filter((camera) => camera.installationId === selectedInstallation?.id);
+  const scopedCameraIds = useMemo(() => new Set(scopedCameras.map((camera) => camera.id)), [scopedCameras]);
+  const selectedCamera = scopedCameras.find((camera) => camera.id === selectedCameraId) ?? scopedCameras[0];
+  const activeCameras = scopedCameras.filter((camera) => camera.status === "online").length;
+  const scopedEvents = snapshot.events.filter((event) => event.cameraId === null || scopedCameraIds.has(event.cameraId));
+  const filteredEvents = useMemo(() => filterEvents(scopedEvents, filters), [scopedEvents, filters]);
+  const displayedCameras = Array.from({ length: grid }, (_, index) => scopedCameras[index % Math.max(scopedCameras.length, 1)]).filter(Boolean);
   const activityData = useMemo(() => Array.from({ length: 12 }, (_, index) => ({
     label: `${String(index + 8).padStart(2, "0")}h`,
     value: 12 + ((index * 17 + snapshot.events.length * 8) % 51),
@@ -143,13 +157,13 @@ export default function CctvConsole() {
     <div className="cctv-shell">
       <aside className="cctv-sidebar">
         <div className="brand-lockup"><span className="brand-orbit"><CircleDotDashed /></span><div><strong>SPACEVISION</strong><small>DVR / SECURITY OS</small></div></div>
-        <div className="site-chip"><span className="status-pip online" /><div><span>Instalação central</span><small>São Paulo · BR</small></div><ChevronDown size={15} /></div>
+        <div className="site-chip"><span className={`status-pip ${selectedInstallation?.status === "active" ? "online" : "warn"}`} /><div><select aria-label="Alternar instalação" value={selectedInstallation?.id ?? 0} onChange={(event) => setSelectedInstallationId(Number(event.target.value))}>{snapshot.installations.map((installation) => <option value={installation.id} key={installation.id}>{installation.name}</option>)}</select><small>{selectedInstallation?.location ?? "Modo de demonstração"}</small></div><ChevronDown size={15} /></div>
         <nav className="side-nav" aria-label="Navegação principal">
           <span className="nav-caption">OPERAÇÃO</span>
           {nav.map((item) => {
-            if (item.admin && !isAdmin) return null;
+            if (item.capability && !can(role, item.capability)) return null;
             const Icon = item.icon;
-            return <button type="button" key={item.key} className={screen === item.key ? "active" : ""} onClick={() => setScreen(item.key)}><Icon size={17} /><span>{item.label}</span>{item.key === "events" && snapshot.events.filter((event) => !event.acknowledged).length > 0 && <i>{snapshot.events.filter((event) => !event.acknowledged).length}</i>}</button>;
+            return <button type="button" key={item.key} className={screen === item.key ? "active" : ""} onClick={() => setScreen(item.key)}><Icon size={17} /><span>{item.label}</span>{item.key === "events" && scopedEvents.filter((event) => !event.acknowledged).length > 0 && <i>{scopedEvents.filter((event) => !event.acknowledged).length}</i>}</button>;
           })}
         </nav>
         <div className="sidebar-bottom">
@@ -164,20 +178,21 @@ export default function CctvConsole() {
           <div className="top-actions"><button type="button" className="icon-button" aria-label="Pesquisar"><Search size={18} /></button><button type="button" className="icon-button notification" aria-label="Notificações"><BellRing size={18} /><i /></button><div className="date-chip"><Clock3 size={15} />{new Intl.DateTimeFormat("pt-BR", { weekday: "short", day: "2-digit", month: "short" }).format(new Date())}</div></div>
         </header>
 
-        {screen === "monitor" && <MonitorScreen cameras={displayedCameras} selectedCamera={selectedCamera} grid={grid} onGrid={setGrid} onSelect={setSelectedCameraId} events={snapshot.events} recordings={snapshot.recordings} playing={playing} progress={progress} onPlay={() => setPlaying((value) => !value)} onProgress={setProgress} />}
-        {screen === "events" && <EventsScreen cameras={snapshot.cameras} events={filteredEvents} filters={filters} onFilters={setFilters} onAcknowledge={protectedCommands.acknowledgeEvent} isAdmin={isAdmin} />}
-        {screen === "cameras" && isAdmin && <CamerasScreen cameras={snapshot.cameras} onEdit={setCameraModal} onStatus={protectedCommands.setCameraStatus} />}
-        {screen === "config" && isAdmin && <ConfigurationScreen cameras={snapshot.cameras} policies={snapshot.retentionPolicies} selectedCameraId={retentionCamera} onSelect={setRetentionCamera} onSave={protectedCommands.setRetention} />}
-        {screen === "reports" && <ReportsScreen cameras={snapshot.cameras} events={filteredEvents} filters={filters} onFilters={setFilters} onCsv={() => exportCsv(filteredEvents, snapshot.cameras)} onPdf={() => exportPdf(filteredEvents, snapshot.cameras, filters)} />}
+        {screen === "monitor" && <MonitorScreen cameras={displayedCameras} selectedCamera={selectedCamera} grid={grid} onGrid={setGrid} onSelect={setSelectedCameraId} events={scopedEvents} recordings={snapshot.recordings} playing={playing} progress={progress} onPlay={() => setPlaying((value) => !value)} onProgress={setProgress} />}
+        {screen === "events" && <EventsScreen cameras={scopedCameras} events={filteredEvents} filters={filters} onFilters={setFilters} onAcknowledge={protectedCommands.acknowledgeEvent} canAcknowledge={canAcknowledge} />}
+        {screen === "cameras" && canManageCameras && <CamerasScreen cameras={scopedCameras} health={snapshot.cameraHealth} onEdit={setCameraModal} onManageInstallation={() => setInstallationModal(selectedInstallation ?? "new")} onStatus={protectedCommands.setCameraStatus} />}
+        {screen === "config" && canManageRetention && <ConfigurationScreen cameras={scopedCameras} policies={snapshot.retentionPolicies} selectedCameraId={retentionCamera} onSelect={setRetentionCamera} onSave={protectedCommands.setRetention} />}
+        {screen === "reports" && canExport && <ReportsScreen cameras={scopedCameras} events={filteredEvents} filters={filters} onFilters={setFilters} onCsv={() => exportCsv(filteredEvents, scopedCameras)} onPdf={() => exportPdf(filteredEvents, scopedCameras, filters)} />}
 
         <section className="system-strip" aria-label="Indicadores do sistema">
-          <Metric icon={CameraIcon} label="Câmeras ativas" value={`${activeCameras}/${snapshot.cameras.length}`} detail="feeds disponíveis" tone="mint" />
+          <Metric icon={CameraIcon} label="Câmeras ativas" value={`${activeCameras}/${scopedCameras.length}`} detail="feeds disponíveis no local" tone="mint" />
           <Metric icon={Gauge} label="Armazenamento" value={`${snapshot.storageUsedPercent}%`} detail="5,9 TB de 8 TB" tone="amber" />
           <Metric icon={Activity} label="Uptime da central" value={formatDuration(snapshot.uptimeSeconds)} detail="serviços estáveis" tone="blue" />
           <div className="metric-card chart-metric"><div><span>Atividade nas últimas 12h</span><strong>+18,4%</strong></div><div className="tiny-chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={activityData}><defs><linearGradient id="activity-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#89e8c3" stopOpacity="0.45"/><stop offset="100%" stopColor="#89e8c3" stopOpacity="0"/></linearGradient></defs><XAxis dataKey="label" hide /><Tooltip contentStyle={{ background: "#13272b", border: "0", color: "#e9f4ef" }} labelStyle={{ display: "none" }} /><Area dataKey="value" stroke="#8ce7c7" strokeWidth={2} fill="url(#activity-fill)" /></AreaChart></ResponsiveContainer></div></div>
         </section>
       </main>
-      {cameraModal && <CameraModal camera={cameraModal === "new" ? undefined : cameraModal} onClose={() => setCameraModal(null)} onSave={async (input) => { await protectedCommands.upsertCamera(input); setCameraModal(null); }} />}
+      {cameraModal && <CameraModal camera={cameraModal === "new" ? undefined : cameraModal} installations={snapshot.installations} onClose={() => setCameraModal(null)} onSave={async (input) => { await protectedCommands.upsertCamera(input); setCameraModal(null); }} />}
+      {installationModal && <InstallationModal installation={installationModal === "new" ? undefined : installationModal} onClose={() => setInstallationModal(null)} onSave={async (input) => { await protectedCommands.upsertInstallation(input); setInstallationModal(null); }} />}
     </div>
   );
 }
@@ -208,15 +223,15 @@ function FilterBar({ cameras, filters, onFilters }: { cameras: Camera[]; filters
   return <div className="filter-bar"><ListFilter size={16} /><select value={filters.cameraId} onChange={(event) => onFilters({ ...filters, cameraId: event.target.value })}><option value="all">Todas as câmeras</option>{cameras.map((camera) => <option value={camera.id} key={camera.id}>{camera.name}</option>)}</select><select value={filters.eventType} onChange={(event) => onFilters({ ...filters, eventType: event.target.value as EventFilters["eventType"] })}><option value="all">Todos os eventos</option><option value="motion">Movimento</option><option value="offline">Câmera offline</option><option value="storage">Armazenamento</option></select><input type="date" aria-label="Data inicial" value={filters.from} onChange={(event) => onFilters({ ...filters, from: event.target.value })} /><input type="date" aria-label="Data final" value={filters.to} onChange={(event) => onFilters({ ...filters, to: event.target.value })} /><button type="button" onClick={() => onFilters(initialFilters)}>Limpar</button></div>;
 }
 
-function EventsScreen({ cameras, events, filters, onFilters, onAcknowledge, isAdmin }: { cameras: Camera[]; events: SystemEvent[]; filters: EventFilters; onFilters: (filters: EventFilters) => void; onAcknowledge: (id: number) => Promise<void>; isAdmin: boolean }) {
-  return <section className="panel-surface content-surface"><div className="section-title spread"><div><h2>Eventos e alertas</h2><span>Registro reativo de ocorrências do sistema</span></div><span className="result-count">{events.length} resultados</span></div><FilterBar cameras={cameras} filters={filters} onFilters={onFilters} /><div className="events-table">{events.length ? events.map((event) => <article key={event.id}><EventMark event={event} /><div className="event-info"><strong>{event.message}</strong><span>{event.cameraId ? cameras.find((camera) => camera.id === event.cameraId)?.name ?? "Câmera" : "Sistema"} · {formatDateTime(event.occurredAt)}</span></div><span className={`severity-badge ${event.severity}`}>{severityLabel(event.severity)}</span>{isAdmin && !event.acknowledged ? <button type="button" onClick={() => void onAcknowledge(event.id)}>Reconhecer</button> : <span className="acknowledged">{event.acknowledged ? "Reconhecido" : "Somente leitura"}</span>}</article>) : <div className="empty-state"><BellRing size={24} /><p>Nenhuma ocorrência corresponde aos filtros selecionados.</p></div>}</div></section>;
+function EventsScreen({ cameras, events, filters, onFilters, onAcknowledge, canAcknowledge }: { cameras: Camera[]; events: SystemEvent[]; filters: EventFilters; onFilters: (filters: EventFilters) => void; onAcknowledge: (id: number) => Promise<void>; canAcknowledge: boolean }) {
+  return <section className="panel-surface content-surface"><div className="section-title spread"><div><h2>Eventos e alertas</h2><span>Registro reativo de ocorrências do sistema</span></div><span className="result-count">{events.length} resultados</span></div><FilterBar cameras={cameras} filters={filters} onFilters={onFilters} /><div className="events-table">{events.length ? events.map((event) => <article key={event.id}><EventMark event={event} /><div className="event-info"><strong>{event.message}</strong><span>{event.cameraId ? cameras.find((camera) => camera.id === event.cameraId)?.name ?? "Câmera" : "Sistema"} · {formatDateTime(event.occurredAt)}</span></div><span className={`severity-badge ${event.severity}`}>{severityLabel(event.severity)}</span>{canAcknowledge && !event.acknowledged ? <button type="button" onClick={() => void onAcknowledge(event.id)}>Reconhecer</button> : <span className="acknowledged">{event.acknowledged ? "Reconhecido" : "Somente leitura"}</span>}</article>) : <div className="empty-state"><BellRing size={24} /><p>Nenhuma ocorrência corresponde aos filtros selecionados.</p></div>}</div></section>;
 }
 
-function CamerasScreen({ cameras, onEdit, onStatus }: { cameras: Camera[]; onEdit: (camera: Camera | "new") => void; onStatus: (id: number, status: Camera["status"]) => Promise<void> }) {
+function CamerasScreen({ cameras, health, onEdit, onManageInstallation, onStatus }: { cameras: Camera[]; health: import("@/lib/cctv/types").CameraHealth[]; onEdit: (camera: Camera | "new") => void; onManageInstallation: () => void; onStatus: (id: number, status: Camera["status"]) => Promise<void> }) {
   const [zone, setZone] = useState("all");
   const zones = Array.from(new Set(cameras.map((camera) => camera.zone)));
   const listedCameras = zone === "all" ? cameras : cameras.filter((camera) => camera.zone === zone);
-  return <section className="panel-surface content-surface"><div className="section-title spread"><div><h2>Inventário de câmeras</h2><span>Gerencie as fontes e sua disponibilidade operacional.</span></div><button type="button" className="primary-button" onClick={() => onEdit("new")}><Plus size={16} />Adicionar câmera</button></div><div className="camera-zone-filter"><span>Grupo / zona</span><div><button type="button" className={zone === "all" ? "active" : ""} onClick={() => setZone("all")}>Todas</button>{zones.map((item) => <button type="button" className={zone === item ? "active" : ""} key={item} onClick={() => setZone(item)}>{item}</button>)}</div></div><div className="camera-list">{listedCameras.map((camera) => <article key={camera.id}><div className={`camera-glyph ${camera.status}`}><CameraIcon size={18} /></div><div className="camera-list-main"><strong>{camera.name}</strong><span>{camera.location} · {camera.zone} · {camera.protocol}</span></div><span className={`camera-status ${camera.status}`}>{camera.status}</span><button type="button" className="soft-button" onClick={() => void onStatus(camera.id, camera.status === "online" ? "offline" : "online")}>{camera.status === "online" ? "Desativar" : "Reativar"}</button><button type="button" className="icon-button" onClick={() => onEdit(camera)}><Settings2 size={16} /></button></article>)}</div></section>;
+  return <section className="panel-surface content-surface"><div className="section-title spread"><div><h2>Inventário de câmeras</h2><span>Gerencie as fontes, etiquetas, saúde e manutenção preventiva.</span></div><div><button type="button" className="soft-button" onClick={onManageInstallation}>Editar instalação</button><button type="button" className="primary-button" onClick={() => onEdit("new")}><Plus size={16} />Adicionar câmera</button></div></div><div className="camera-zone-filter"><span>Grupo / zona</span><div><button type="button" className={zone === "all" ? "active" : ""} onClick={() => setZone("all")}>Todas</button>{zones.map((item) => <button type="button" className={zone === item ? "active" : ""} key={item} onClick={() => setZone(item)}>{item}</button>)}</div></div><div className="camera-list">{listedCameras.map((camera) => { const condition = health.find((item) => item.cameraId === camera.id); return <article key={camera.id}><div className={`camera-glyph ${camera.status}`}><CameraIcon size={18} /></div><div className="camera-list-main"><strong>{camera.name}</strong><span>{camera.location} · {camera.zone} · {camera.protocol}</span><span>Etiquetas: {camera.tags || "sem etiquetas"} · {condition?.consecutiveFailures ? `${condition.consecutiveFailures} falha(s) consecutiva(s)` : "saudável"}{condition?.maintenanceNote ? ` · ${condition.maintenanceNote}` : ""}</span></div><span className={`camera-status ${camera.status}`}>{camera.status}</span><button type="button" className="soft-button" onClick={() => void onStatus(camera.id, camera.status === "online" ? "offline" : "online")}>{camera.status === "online" ? "Desativar" : "Reativar"}</button><button type="button" className="icon-button" onClick={() => onEdit(camera)}><Settings2 size={16} /></button></article>; })}</div></section>;
 }
 
 function ConfigurationScreen({ cameras, policies, selectedCameraId, onSelect, onSave }: { cameras: Camera[]; policies: RetentionPolicy[]; selectedCameraId: number; onSelect: (id: number) => void; onSave: (policy: RetentionPolicy) => Promise<void> }) {
@@ -230,7 +245,12 @@ function ReportsScreen({ cameras, events, filters, onFilters, onCsv, onPdf }: { 
   return <section className="panel-surface content-surface"><div className="section-title spread"><div><h2>Exportar ocorrências</h2><span>O arquivo reflete somente os eventos correspondentes aos filtros abaixo.</span></div><span className="result-count">{events.length} itens selecionados</span></div><FilterBar cameras={cameras} filters={filters} onFilters={onFilters} /><div className="report-preview"><div><FileText size={24} /><strong>Relatório de ocorrências</strong><span>Inclui tipo, severidade, câmera, data e status de reconhecimento.</span></div><div className="report-actions"><button type="button" className="soft-button" onClick={onCsv}><Download size={16} />CSV</button><button type="button" className="primary-button" onClick={onPdf}><FileText size={16} />PDF</button></div></div></section>;
 }
 
-function CameraModal({ camera, onClose, onSave }: { camera?: Camera; onClose: () => void; onSave: (input: CameraInput & { id?: number }) => Promise<void> }) {
-  const [draft, setDraft] = useState<CameraInput>({ name: camera?.name ?? "", location: camera?.location ?? "", zone: camera?.zone ?? "", protocol: "RTSP", streamUrl: camera?.streamUrl ?? "rtsp://", status: camera?.status ?? "online" });
-  return <div className="modal-layer" role="dialog" aria-modal="true" aria-label={camera ? "Editar câmera" : "Adicionar câmera"}><form className="camera-modal" onSubmit={(event) => { event.preventDefault(); void onSave({ ...draft, id: camera?.id }); }}><div className="modal-header"><div><span className="eyebrow">GERENCIAMENTO</span><h2>{camera ? "Editar câmera" : "Nova câmera"}</h2></div><button type="button" className="icon-button" onClick={onClose}><X size={18} /></button></div><div className="form-grid"><label><span>Nome</span><input required value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} placeholder="Ex.: Entrada principal" /></label><label><span>Localização</span><input required value={draft.location} onChange={(event) => setDraft({ ...draft, location: event.target.value })} placeholder="Ex.: Portaria norte" /></label><label><span>Grupo / zona</span><input required value={draft.zone} onChange={(event) => setDraft({ ...draft, zone: event.target.value })} placeholder="Ex.: Acesso" /></label><label><span>Estado</span><select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as Camera["status"] })}><option value="online">Online</option><option value="offline">Offline</option></select></label><label className="wide"><span>Endpoint RTSP <em>placeholder</em></span><input required value={draft.streamUrl} onChange={(event) => setDraft({ ...draft, streamUrl: event.target.value })} /></label></div><div className="modal-actions"><button type="button" className="soft-button" onClick={onClose}>Cancelar</button><button type="submit" className="primary-button">{camera ? "Salvar alterações" : "Criar câmera"}</button></div></form></div>;
+function CameraModal({ camera, installations, onClose, onSave }: { camera?: Camera; installations: import("@/lib/cctv/types").Installation[]; onClose: () => void; onSave: (input: CameraInput & { id?: number }) => Promise<void> }) {
+  const [draft, setDraft] = useState<CameraInput>({ installationId: camera?.installationId ?? 1, name: camera?.name ?? "", location: camera?.location ?? "", zone: camera?.zone ?? "", tags: camera?.tags ?? "", protocol: "RTSP", streamUrl: camera?.streamUrl ?? "rtsp://", status: camera?.status ?? "online" });
+  return <div className="modal-layer" role="dialog" aria-modal="true" aria-label={camera ? "Editar câmera" : "Adicionar câmera"}><form className="camera-modal" onSubmit={(event) => { event.preventDefault(); void onSave({ ...draft, id: camera?.id }); }}><div className="modal-header"><div><span className="eyebrow">GERENCIAMENTO</span><h2>{camera ? "Editar câmera" : "Nova câmera"}</h2></div><button type="button" className="icon-button" onClick={onClose}><X size={18} /></button></div><div className="form-grid"><label><span>Instalação</span><select value={draft.installationId} onChange={(event) => setDraft({ ...draft, installationId: Number(event.target.value) })}>{installations.map((installation) => <option value={installation.id} key={installation.id}>{installation.name}</option>)}</select></label><label><span>Nome</span><input required value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} placeholder="Ex.: Entrada principal" /></label><label><span>Localização</span><input required value={draft.location} onChange={(event) => setDraft({ ...draft, location: event.target.value })} placeholder="Ex.: Portaria norte" /></label><label><span>Grupo / zona</span><input required value={draft.zone} onChange={(event) => setDraft({ ...draft, zone: event.target.value })} placeholder="Ex.: Acesso" /></label><label><span>Etiquetas</span><input value={draft.tags} onChange={(event) => setDraft({ ...draft, tags: event.target.value })} placeholder="acesso, perímetro" /></label><label><span>Estado</span><select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as Camera["status"] })}><option value="online">Online</option><option value="offline">Offline</option></select></label><label className="wide"><span>Endpoint RTSP <em>placeholder</em></span><input required value={draft.streamUrl} onChange={(event) => setDraft({ ...draft, streamUrl: event.target.value })} /></label></div><div className="modal-actions"><button type="button" className="soft-button" onClick={onClose}>Cancelar</button><button type="submit" className="primary-button">{camera ? "Salvar alterações" : "Criar câmera"}</button></div></form></div>;
+}
+
+function InstallationModal({ installation, onClose, onSave }: { installation?: Installation; onClose: () => void; onSave: (input: InstallationInput & { id?: number }) => Promise<void> }) {
+  const [draft, setDraft] = useState<InstallationInput>({ name: installation?.name ?? "", location: installation?.location ?? "", timezone: installation?.timezone ?? "America/Sao_Paulo", status: installation?.status ?? "active" });
+  return <div className="modal-layer" role="dialog" aria-modal="true" aria-label="Editar instalação"><form className="camera-modal" onSubmit={(event) => { event.preventDefault(); void onSave({ ...draft, id: installation?.id }); }}><div className="modal-header"><div><span className="eyebrow">MULTI-INSTALAÇÃO</span><h2>{installation ? "Editar instalação" : "Nova instalação"}</h2></div><button type="button" className="icon-button" onClick={onClose}><X size={18} /></button></div><div className="form-grid"><label><span>Nome</span><input required value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></label><label><span>Localização</span><input required value={draft.location} onChange={(event) => setDraft({ ...draft, location: event.target.value })} /></label><label><span>Fuso horário</span><input required value={draft.timezone} onChange={(event) => setDraft({ ...draft, timezone: event.target.value })} /></label><label><span>Estado</span><select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as InstallationInput["status"] })}><option value="active">Ativa</option><option value="maintenance">Manutenção</option><option value="inactive">Inativa</option></select></label></div><div className="modal-actions"><button type="button" className="soft-button" onClick={onClose}>Cancelar</button><button type="submit" className="primary-button">Salvar instalação</button></div></form></div>;
 }

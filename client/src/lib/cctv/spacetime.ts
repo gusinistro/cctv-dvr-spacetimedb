@@ -20,11 +20,14 @@ function makeSpacetimeStore(uri: string, databaseName: string): CctvStore {
   const refresh = () => {
     if (!actual) return;
     const rows = (name: string) => Array.from(actual.db[name].iter());
-    const cameras = rows("cameras").map((row: any) => ({ ...row, id: asNumber(row.id), status: row.status, protocol: "RTSP", motion: false, scene: "day" }));
+    const cameras = rows("cameras").map((row: any) => ({ ...row, id: asNumber(row.id), installationId: asNumber(row.installationId), status: row.status, protocol: "RTSP", motion: false, scene: "day" }));
+    const installations = rows("installations").map((row: any) => ({ ...row, id: asNumber(row.id) }));
+    const cameraHealth = rows("cameraHealth").map((row: any) => ({ ...row, cameraId: asNumber(row.cameraId), consecutiveFailures: asNumber(row.consecutiveFailures), lastCheckedAt: asNumber(row.lastCheckedAt), lastSuccessAt: asNumber(row.lastSuccessAt), maintenanceDueAt: row.maintenanceDueAt ? asNumber(row.maintenanceDueAt) : undefined }));
+    const evidenceRecords = rows("evidenceRecords").map((row: any) => ({ ...row, id: asNumber(row.id), analysisEventId: asNumber(row.analysisEventId), cameraId: asNumber(row.cameraId), createdAt: asNumber(row.createdAt), exportedAt: row.exportedAt ? asNumber(row.exportedAt) : undefined }));
     const events = rows("events").map((row: any) => ({ ...row, id: asNumber(row.id), cameraId: row.cameraId ? asNumber(row.cameraId) : null, occurredAt: asNumber(row.occurredAt), acknowledged: row.acknowledged }));
     const recordings = rows("recordings").map((row: any) => ({ ...row, id: asNumber(row.id), cameraId: asNumber(row.cameraId), startedAt: asNumber(row.startedAt), durationSeconds: asNumber(row.durationSeconds) }));
     const retentionPolicies = rows("retentionPolicies").map((row: any) => ({ ...row, cameraId: asNumber(row.cameraId), retentionDays: asNumber(row.retentionDays) }));
-    snapshot = { ...demo.getSnapshot(), cameras, events, recordings, retentionPolicies, connected: true, source: "spacetimedb", updatedAt: Date.now() };
+    snapshot = { ...demo.getSnapshot(), installations, cameras, cameraHealth, evidenceRecords, events, recordings, retentionPolicies, connected: true, source: "spacetimedb", updatedAt: Date.now() };
     emit();
   };
 
@@ -36,7 +39,13 @@ function makeSpacetimeStore(uri: string, databaseName: string): CctvStore {
     .onConnect((connection, _identity, token) => {
       localStorage.setItem(tokenKey, token);
       actual = connection;
-      connection.subscriptionBuilder().onApplied(refresh).subscribe([tables.cameras, tables.recordings, tables.events, tables.retentionPolicies]);
+      connection.subscriptionBuilder().onApplied(refresh).subscribe([tables.installations, tables.cameras, tables.cameraHealth, tables.evidenceRecords, tables.recordings, tables.events, tables.retentionPolicies]);
+      connection.db.installations.onInsert(refresh);
+      connection.db.installations.onUpdate(refresh);
+      connection.db.cameraHealth.onInsert(refresh);
+      connection.db.cameraHealth.onUpdate(refresh);
+      connection.db.evidenceRecords.onInsert(refresh);
+      connection.db.evidenceRecords.onUpdate(refresh);
       connection.db.cameras.onInsert(refresh);
       connection.db.cameras.onUpdate(refresh);
       connection.db.cameras.onDelete(refresh);
@@ -63,6 +72,10 @@ function makeSpacetimeStore(uri: string, databaseName: string): CctvStore {
   return {
     getSnapshot: () => snapshot,
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
+    async upsertInstallation(input) {
+      if (!actual) return demo.upsertInstallation(input);
+      await actual.reducers.upsertInstallation({ id: input.id ?? 0, ...input });
+    },
     async upsertCamera(input: CameraInput & { id?: number }) {
       if (!actual) return demo.upsertCamera(input);
       await actual.reducers.upsertCamera({ id: input.id ?? 0, ...input });

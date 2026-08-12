@@ -9,13 +9,13 @@ const databaseName = process.env.SPACETIMEDB_DATABASE ?? "spacevision-analysis-t
 
 function connect() {
   return new Promise<any>((resolve, reject) => {
-    DbConnection.builder().withUri(uri).withDatabaseName(databaseName).onConnect((connection) => resolve(connection)).onConnectError((error) => reject(new Error(`Falha de conexão: ${String(error)}`))).build();
+    DbConnection.builder().withUri(uri).withDatabaseName(databaseName).onConnect((connection, identity) => resolve({ connection, identity })).onConnectError((error) => reject(new Error(`Falha de conexão: ${String(error)}`))).build();
   });
 }
 
 function applySubscription(connection: any) {
   return new Promise<void>((resolve) => {
-    connection.subscriptionBuilder().onApplied(() => resolve()).subscribe([tables.cameras, tables.analysisEvents, tables.auditLogs, tables.biometricControls]);
+    connection.subscriptionBuilder().onApplied(() => resolve()).subscribe([tables.actors, tables.installations, tables.cameras, tables.cameraHealth, tables.events, tables.analysisEvents, tables.evidenceRecords, tables.auditLogs, tables.biometricControls]);
   });
 }
 
@@ -37,7 +37,11 @@ function runWorkerFixture() {
 }
 
 async function main() {
-  const connection = await connect();
+  const adminSession = await connect();
+  const connection = adminSession.connection;
+  let operatorSession: any;
+  let auditorSession: any;
+  let technicianSession: any;
   try {
     await connection.reducers.bootstrapAdmin({ displayName: "Validação Desktop" });
     await applySubscription(connection);
@@ -54,8 +58,60 @@ async function main() {
     const reviewed = Array.from(connection.db.analysisEvents.iter())[0] as any;
     const auditCount = Array.from(connection.db.auditLogs.iter()).length;
     if (!reviewed?.reviewed || auditCount < 3) throw new Error("A revisão ou a auditoria não foi persistida.");
-    console.log(JSON.stringify({ ok: true, analysisEventId: Number(reviewed.id), auditCount, cameraId: Number(reviewed.cameraId), classification: reviewed.classification }));
+    await connection.reducers.hashEvidence({ analysisEventId: Number(reviewed.id), sha256: "a".repeat(64), evidenceRef: workerResult.imagePath.split(/[\\/]/).pop() });
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    const evidence = Array.from(connection.db.evidenceRecords.iter())[0] as any;
+    if (!evidence || evidence.sha256 !== "a".repeat(64)) throw new Error("O hash de integridade da evidência não foi registrado.");
+
+    operatorSession = await connect();
+    await operatorSession.connection.reducers.registerViewer({ displayName: "Operador de validação" });
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    await connection.reducers.setActorRole({ identity: operatorSession.identity, role: "operator" });
+    await applySubscription(operatorSession.connection);
+    await operatorSession.connection.reducers.logSystemEvent({ cameraId: Number(camera.id), type: "health", severity: "warning", message: "Teste de evento operacional" });
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    const operationalEvent = Array.from(operatorSession.connection.db.events.iter()).find((entry: any) => entry.message === "Teste de evento operacional") as any;
+    if (!operationalEvent) throw new Error("O operador não conseguiu registrar o evento autorizado.");
+    await operatorSession.connection.reducers.acknowledgeEvent({ id: Number(operationalEvent.id) });
+
+    auditorSession = await connect();
+    await auditorSession.connection.reducers.registerViewer({ displayName: "Auditor de validação" });
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    await connection.reducers.setActorRole({ identity: auditorSession.identity, role: "auditor" });
+    await applySubscription(auditorSession.connection);
+    let auditorBlocked = false;
+    try {
+      await auditorSession.connection.reducers.acknowledgeEvent({ id: Number(operationalEvent.id) });
+    } catch {
+      auditorBlocked = true;
+    }
+    if (!auditorBlocked) throw new Error("O auditor não foi bloqueado ao tentar reconhecer um evento.");
+    await auditorSession.connection.reducers.markEvidenceExported({ id: Number(evidence.id), signedExportRef: "export://validation/signed-package", signatureAlgorithm: "SHA256withRSA" });
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    const exportedEvidence = Array.from(connection.db.evidenceRecords.iter())[0] as any;
+    if (!exportedEvidence?.exportedAt || exportedEvidence.signatureAlgorithm !== "SHA256withRSA") throw new Error("A exportação assinada da evidência não foi persistida.");
+
+    technicianSession = await connect();
+    await technicianSession.connection.reducers.registerViewer({ displayName: "Técnico de validação" });
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    await connection.reducers.setActorRole({ identity: technicianSession.identity, role: "technician" });
+    await applySubscription(technicianSession.connection);
+    await technicianSession.connection.reducers.reportCameraHealth({ cameraId: Number(camera.id), success: false, maintenanceNote: "Inspeção preventiva solicitada", maintenanceStatus: "scheduled", maintenanceDueAt: undefined });
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    const health = Array.from(technicianSession.connection.db.cameraHealth.iter()).find((entry: any) => Number(entry.cameraId) === Number(camera.id)) as any;
+    if (!health || Number(health.consecutiveFailures) !== 1 || health.maintenanceNote !== "Inspeção preventiva solicitada") throw new Error("O relatório de saúde técnica não foi registrado.");
+
+    await connection.reducers.enforceDataRetention();
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    const auditActions = (Array.from(connection.db.auditLogs.iter()) as any[]).filter((entry) => String(entry.actor) === String(operatorSession.identity)).map((entry) => entry.action);
+    if (!auditActions.includes("system_event_logged") || !auditActions.includes("event_acknowledged")) throw new Error("As ações autorizadas do operador não geraram a trilha de auditoria esperada.");
+    const allAuditActions = (Array.from(connection.db.auditLogs.iter()) as any[]).map((entry) => entry.action);
+    for (const expectedAction of ["evidence_hashed", "evidence_exported", "camera_health_reported", "retention_enforced"]) if (!allAuditActions.includes(expectedAction)) throw new Error(`Ação auditável ausente: ${expectedAction}`);
+    console.log(JSON.stringify({ ok: true, analysisEventId: Number(reviewed.id), evidenceId: Number(evidence.id), auditCount: Array.from(connection.db.auditLogs.iter()).length, cameraId: Number(camera.id), classification: reviewed.classification, operatorAuditActions: auditActions, auditorBlocked, technicianHealthFailureCount: Number(health.consecutiveFailures) }));
   } finally {
+    operatorSession?.connection.disconnect();
+    auditorSession?.connection.disconnect();
+    technicianSession?.connection.disconnect();
     connection.disconnect();
   }
 }
