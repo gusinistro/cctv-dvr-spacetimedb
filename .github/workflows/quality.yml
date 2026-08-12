@@ -36,5 +36,8 @@ jobs:
       - name: Validate web contracts
         run: pnpm check && pnpm test
 
+      - name: Audit production dependencies
+        run: pnpm audit --prod --audit-level high
+
       - name: Validate desktop Rust backend
         run: pnpm desktop:check
