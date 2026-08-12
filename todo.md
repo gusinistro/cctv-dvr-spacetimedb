@@ -61,8 +61,11 @@
 - [ ] Adicionar observabilidade de serviço, diagnósticos, telemetria local opcional, cópias de segurança e recuperação documentada.
 - [ ] Elevar a experiência desktop com fluxos de onboarding, operação por atalhos, estados vazios e acessibilidade.
 - [x] Criar automação de qualidade, segurança de dependências, releases versionadas e documentação de operação empresarial.
-- [ ] Implementar workflow de release versionada por tag com notas geradas e artefatos desktop validados.
-- [ ] Publicar e verificar o processo de release versionada e a documentação no repositório GitHub.
+- [x] Implementar workflow de release versionada por tag com notas geradas e artefatos desktop validados.
+- [x] Publicar e verificar o processo de release versionada e a documentação no repositório GitHub.
+- [ ] Executar e verificar uma release real por tag, incluindo notas geradas e artefatos desktop publicados.
+- [ ] Documentar no repositório a tag executada, as validações, os artefatos gerados e limitações observadas.
+- [ ] Corrigir o conflito de versão do pnpm na esteira de release e repetir a execução por tag.
 - [x] Avaliar e corrigir vulnerabilidades transitivas de produção com atualização compatível, validação integral e registro de impacto.
 - [x] Corrigir a regressão `pathRegexp is not a function` introduzida pela atualização de segurança e revalidar o servidor de desenvolvimento.
 - [ ] Validar o produto ampliado e publicar a evolução profissional no GitHub.
