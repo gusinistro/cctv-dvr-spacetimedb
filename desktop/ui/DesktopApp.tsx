@@ -105,6 +105,14 @@ export default function DesktopApp() {
     } catch (error) { setNotice(`Não foi possível registrar a saúde técnica: ${String(error)}`); }
   }
 
+  async function transitionMaintenance(cameraId: number, maintenanceStatus: "scheduled" | "in_progress" | "completed") {
+    try {
+      const note = maintenanceStatus === "scheduled" ? "Manutenção preventiva programada no desktop." : maintenanceStatus === "in_progress" ? "Manutenção preventiva em andamento no desktop." : "Manutenção preventiva concluída no desktop.";
+      await reportCameraHealth(cameraId, maintenanceStatus === "completed", note, maintenanceStatus);
+      setNotice(`Manutenção da câmera atualizada para ${maintenanceStatus} e auditada.`);
+    } catch (error) { setNotice(`Não foi possível atualizar a manutenção: ${String(error)}`); }
+  }
+
   async function runLocalAnalysis() {
     if (!imagePath.trim()) { setNotice("Informe o caminho local de uma imagem ou frame extraído para análise."); return; }
     if (!analysisCameraId) { setNotice("Selecione a câmera de origem antes de encaminhar a análise."); return; }
