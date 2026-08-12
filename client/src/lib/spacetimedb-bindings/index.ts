@@ -36,15 +36,20 @@ import {
 // Import all reducer arg schemas
 import AcknowledgeEventReducer from "./acknowledge_event_reducer";
 import BootstrapAdminReducer from "./bootstrap_admin_reducer";
+import EnforceDataRetentionReducer from "./enforce_data_retention_reducer";
+import HashEvidenceReducer from "./hash_evidence_reducer";
 import LogAnalysisEventReducer from "./log_analysis_event_reducer";
 import LogSystemEventReducer from "./log_system_event_reducer";
+import MarkEvidenceExportedReducer from "./mark_evidence_exported_reducer";
 import RegisterViewerReducer from "./register_viewer_reducer";
+import ReportCameraHealthReducer from "./report_camera_health_reducer";
 import ReviewAnalysisEventReducer from "./review_analysis_event_reducer";
 import SeedDemoReducer from "./seed_demo_reducer";
 import SetActorRoleReducer from "./set_actor_role_reducer";
 import SetBiometricControlsReducer from "./set_biometric_controls_reducer";
 import SetRetentionPolicyReducer from "./set_retention_policy_reducer";
 import UpsertCameraReducer from "./upsert_camera_reducer";
+import UpsertInstallationReducer from "./upsert_installation_reducer";
 
 // Import all procedure arg schemas
 
@@ -53,8 +58,11 @@ import ActorsRow from "./actors_table";
 import AnalysisEventsRow from "./analysis_events_table";
 import AuditLogsRow from "./audit_logs_table";
 import BiometricControlsRow from "./biometric_controls_table";
+import CameraHealthRow from "./camera_health_table";
 import CamerasRow from "./cameras_table";
 import EventsRow from "./events_table";
+import EvidenceRecordsRow from "./evidence_records_table";
+import InstallationsRow from "./installations_table";
 import RecordingsRow from "./recordings_table";
 import RetentionPoliciesRow from "./retention_policies_table";
 
@@ -133,11 +141,31 @@ const tablesSchema = __schema({
       { name: 'biometric_controls_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, BiometricControlsRow),
+  cameraHealth: __table({
+    name: 'camera_health',
+    indexes: [
+      { accessor: 'cameraId', name: 'camera_health_camera_id_idx_btree', algorithm: 'btree', columns: [
+        'cameraId',
+      ] },
+      { accessor: 'lastCheckedAt', name: 'camera_health_last_checked_at_idx_btree', algorithm: 'btree', columns: [
+        'lastCheckedAt',
+      ] },
+      { accessor: 'maintenanceStatus', name: 'camera_health_maintenance_status_idx_btree', algorithm: 'btree', columns: [
+        'maintenanceStatus',
+      ] },
+    ],
+    constraints: [
+      { name: 'camera_health_camera_id_key', constraint: 'unique', columns: ['cameraId'] },
+    ],
+  }, CameraHealthRow),
   cameras: __table({
     name: 'cameras',
     indexes: [
       { accessor: 'id', name: 'cameras_id_idx_btree', algorithm: 'btree', columns: [
         'id',
+      ] },
+      { accessor: 'installationId', name: 'cameras_installation_id_idx_btree', algorithm: 'btree', columns: [
+        'installationId',
       ] },
       { accessor: 'status', name: 'cameras_status_idx_btree', algorithm: 'btree', columns: [
         'status',
@@ -173,6 +201,49 @@ const tablesSchema = __schema({
       { name: 'events_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, EventsRow),
+  evidenceRecords: __table({
+    name: 'evidence_records',
+    indexes: [
+      { accessor: 'analysisEventId', name: 'evidence_records_analysis_event_id_idx_btree', algorithm: 'btree', columns: [
+        'analysisEventId',
+      ] },
+      { accessor: 'cameraId', name: 'evidence_records_camera_id_idx_btree', algorithm: 'btree', columns: [
+        'cameraId',
+      ] },
+      { accessor: 'createdAt', name: 'evidence_records_created_at_idx_btree', algorithm: 'btree', columns: [
+        'createdAt',
+      ] },
+      { accessor: 'id', name: 'evidence_records_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'recordedBy', name: 'evidence_records_recorded_by_idx_btree', algorithm: 'btree', columns: [
+        'recordedBy',
+      ] },
+      { accessor: 'sha256', name: 'evidence_records_sha_256_idx_btree', algorithm: 'btree', columns: [
+        'sha256',
+      ] },
+    ],
+    constraints: [
+      { name: 'evidence_records_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, EvidenceRecordsRow),
+  installations: __table({
+    name: 'installations',
+    indexes: [
+      { accessor: 'id', name: 'installations_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'managerId', name: 'installations_manager_id_idx_btree', algorithm: 'btree', columns: [
+        'managerId',
+      ] },
+      { accessor: 'status', name: 'installations_status_idx_btree', algorithm: 'btree', columns: [
+        'status',
+      ] },
+    ],
+    constraints: [
+      { name: 'installations_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, InstallationsRow),
   recordings: __table({
     name: 'recordings',
     indexes: [
@@ -211,15 +282,20 @@ const tablesSchema = __schema({
 const reducersSchema = __reducers(
   __reducerSchema("acknowledge_event", AcknowledgeEventReducer),
   __reducerSchema("bootstrap_admin", BootstrapAdminReducer),
+  __reducerSchema("enforce_data_retention", EnforceDataRetentionReducer),
+  __reducerSchema("hash_evidence", HashEvidenceReducer),
   __reducerSchema("log_analysis_event", LogAnalysisEventReducer),
   __reducerSchema("log_system_event", LogSystemEventReducer),
+  __reducerSchema("mark_evidence_exported", MarkEvidenceExportedReducer),
   __reducerSchema("register_viewer", RegisterViewerReducer),
+  __reducerSchema("report_camera_health", ReportCameraHealthReducer),
   __reducerSchema("review_analysis_event", ReviewAnalysisEventReducer),
   __reducerSchema("seed_demo", SeedDemoReducer),
   __reducerSchema("set_actor_role", SetActorRoleReducer),
   __reducerSchema("set_biometric_controls", SetBiometricControlsReducer),
   __reducerSchema("set_retention_policy", SetRetentionPolicyReducer),
   __reducerSchema("upsert_camera", UpsertCameraReducer),
+  __reducerSchema("upsert_installation", UpsertInstallationReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */

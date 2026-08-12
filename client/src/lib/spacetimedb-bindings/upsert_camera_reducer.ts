@@ -12,9 +12,11 @@ import {
 
 export default {
   id: __t.u32(),
+  installationId: __t.u32(),
   name: __t.string(),
   location: __t.string(),
   zone: __t.string(),
+  tags: __t.string(),
   protocol: __t.string(),
   streamUrl: __t.string(),
   status: __t.string(),

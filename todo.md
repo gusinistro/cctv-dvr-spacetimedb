@@ -38,3 +38,27 @@
 - [x] Criar testes, pacote Linux e automação de build Windows para a extensão desktop.
 - [x] Documentar a instalação e execução do aplicativo desktop em Windows e Linux, incluindo dependências de Python, FFmpeg e solução de problemas.
 - [x] Publicar a extensão SpaceVision Desktop e o workflow de builds multiplataforma no repositório GitHub selecionado.
+- [x] Auditar arquitetura, segurança, UX e confiabilidade contra requisitos de uma operação CCTV profissional.
+- [x] Implementar gestão multi-instalação, inventário operacional de câmeras, tags, saúde e manutenção preventiva.
+- [ ] Implementar comandos e interfaces para criar, editar, alternar e visualizar múltiplas instalações no web e desktop.
+- [x] Criar fluxo operacional de manutenção preventiva com vencimento, estado e ações por câmera além da nota de diagnóstico.
+- [x] Cobrir multi-instalação, etiquetas e saúde/manutenção com testes automatizados de store e reducers reativos.
+- [ ] Adicionar ações web e desktop para transicionar manutenção preventiva por câmera e definir vencimento.
+- [ ] Criar cobertura automatizada dos reducers reativos para instalações, etiquetas e saúde ou manutenção.
+- [x] Fortalecer o cofre de credenciais local, a trilha de auditoria e a base de papéis operacionais no módulo reativo.
+- [x] Integrar papéis operacionais à interface desktop e às permissões visíveis de revisão e governança.
+- [x] Cobrir em testes as permissões de `operator`, `auditor` e `technician` e a matriz de capacidades do painel.
+- [x] Integrar os papéis profissionais também às rotas e fluxos web relevantes, além dos controles do desktop.
+- [x] Criar testes ponta a ponta para reducers com papéis operacionais, permissões permitidas ou negadas e geração de `audit_logs`.
+- [x] Documentar e validar visualmente as telas e ações disponíveis para cada papel operacional.
+- [ ] Validar visualmente a matriz de navegação e ações bloqueadas no painel web para `admin`, `operator`, `auditor`, `technician` e `viewer`.
+- [ ] Validar a interface desktop com identidades de papéis distintos para revisão de análise e governança biométrica.
+- [ ] Atualizar a documentação operacional com evidências verificáveis da validação visual por papel e suas limitações.
+- [x] Implementar e documentar enforcement adicional de retenção e privacidade para eventos analíticos, evidências e exportações.
+- [x] Implementar cadeia de evidências com integridade de clipes, exportação assinada e contexto de eventos revisáveis.
+- [ ] Aplicar enforcement de privacidade a exportações analíticas e testar remoção efetiva de dados expirados.
+- [ ] Implementar assinatura real de pacotes de evidência ou clipe e validar a cadeia completa além de metadados.
+- [ ] Adicionar observabilidade de serviço, diagnósticos, telemetria local opcional, cópias de segurança e recuperação documentada.
+- [ ] Elevar a experiência desktop com fluxos de onboarding, operação por atalhos, estados vazios e acessibilidade.
+- [ ] Criar automação de qualidade, segurança de dependências, releases versionadas e documentação de operação empresarial.
+- [ ] Validar o produto ampliado e publicar a evolução profissional no GitHub.

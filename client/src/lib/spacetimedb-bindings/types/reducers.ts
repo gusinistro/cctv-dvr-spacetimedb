@@ -8,25 +8,35 @@ import { type Infer as __Infer } from "spacetimedb";
 // Import all reducer arg schemas
 import AcknowledgeEventReducer from "../acknowledge_event_reducer";
 import BootstrapAdminReducer from "../bootstrap_admin_reducer";
+import EnforceDataRetentionReducer from "../enforce_data_retention_reducer";
+import HashEvidenceReducer from "../hash_evidence_reducer";
 import LogAnalysisEventReducer from "../log_analysis_event_reducer";
 import LogSystemEventReducer from "../log_system_event_reducer";
+import MarkEvidenceExportedReducer from "../mark_evidence_exported_reducer";
 import RegisterViewerReducer from "../register_viewer_reducer";
+import ReportCameraHealthReducer from "../report_camera_health_reducer";
 import ReviewAnalysisEventReducer from "../review_analysis_event_reducer";
 import SeedDemoReducer from "../seed_demo_reducer";
 import SetActorRoleReducer from "../set_actor_role_reducer";
 import SetBiometricControlsReducer from "../set_biometric_controls_reducer";
 import SetRetentionPolicyReducer from "../set_retention_policy_reducer";
 import UpsertCameraReducer from "../upsert_camera_reducer";
+import UpsertInstallationReducer from "../upsert_installation_reducer";
 
 export type AcknowledgeEventParams = __Infer<typeof AcknowledgeEventReducer>;
 export type BootstrapAdminParams = __Infer<typeof BootstrapAdminReducer>;
+export type EnforceDataRetentionParams = __Infer<typeof EnforceDataRetentionReducer>;
+export type HashEvidenceParams = __Infer<typeof HashEvidenceReducer>;
 export type LogAnalysisEventParams = __Infer<typeof LogAnalysisEventReducer>;
 export type LogSystemEventParams = __Infer<typeof LogSystemEventReducer>;
+export type MarkEvidenceExportedParams = __Infer<typeof MarkEvidenceExportedReducer>;
 export type RegisterViewerParams = __Infer<typeof RegisterViewerReducer>;
+export type ReportCameraHealthParams = __Infer<typeof ReportCameraHealthReducer>;
 export type ReviewAnalysisEventParams = __Infer<typeof ReviewAnalysisEventReducer>;
 export type SeedDemoParams = __Infer<typeof SeedDemoReducer>;
 export type SetActorRoleParams = __Infer<typeof SetActorRoleReducer>;
 export type SetBiometricControlsParams = __Infer<typeof SetBiometricControlsReducer>;
 export type SetRetentionPolicyParams = __Infer<typeof SetRetentionPolicyReducer>;
 export type UpsertCameraParams = __Infer<typeof UpsertCameraReducer>;
+export type UpsertInstallationParams = __Infer<typeof UpsertInstallationReducer>;
 

@@ -53,11 +53,24 @@ export const BiometricControls = __t.object("BiometricControls", {
 });
 export type BiometricControls = __Infer<typeof BiometricControls>;
 
+export const CameraHealth = __t.object("CameraHealth", {
+  cameraId: __t.u32(),
+  consecutiveFailures: __t.u32(),
+  lastCheckedAt: __t.timestamp(),
+  lastSuccessAt: __t.timestamp(),
+  maintenanceNote: __t.string(),
+  maintenanceStatus: __t.string(),
+  maintenanceDueAt: __t.option(__t.timestamp()),
+});
+export type CameraHealth = __Infer<typeof CameraHealth>;
+
 export const Cameras = __t.object("Cameras", {
   id: __t.u32(),
+  installationId: __t.u32(),
   name: __t.string(),
   location: __t.string(),
   zone: __t.string(),
+  tags: __t.string(),
   protocol: __t.string(),
   streamUrl: __t.string(),
   status: __t.string(),
@@ -76,6 +89,33 @@ export const Events = __t.object("Events", {
   acknowledged: __t.bool(),
 });
 export type Events = __Infer<typeof Events>;
+
+export const EvidenceRecords = __t.object("EvidenceRecords", {
+  id: __t.u32(),
+  analysisEventId: __t.u32(),
+  cameraId: __t.u32(),
+  evidenceRef: __t.string(),
+  sha256: __t.string(),
+  recordedBy: __t.identity(),
+  createdAt: __t.timestamp(),
+  exportedAt: __t.option(__t.timestamp()),
+  exportedBy: __t.option(__t.identity()),
+  signedExportRef: __t.option(__t.string()),
+  signatureAlgorithm: __t.option(__t.string()),
+});
+export type EvidenceRecords = __Infer<typeof EvidenceRecords>;
+
+export const Installations = __t.object("Installations", {
+  id: __t.u32(),
+  name: __t.string(),
+  location: __t.string(),
+  timezone: __t.string(),
+  managerId: __t.identity(),
+  status: __t.string(),
+  createdAt: __t.timestamp(),
+  updatedAt: __t.timestamp(),
+});
+export type Installations = __Infer<typeof Installations>;
 
 export const Recordings = __t.object("Recordings", {
   id: __t.u32(),

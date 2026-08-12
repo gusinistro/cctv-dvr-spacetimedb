@@ -11,14 +11,14 @@ import type {
 const now = Date.now();
 
 const baseCameras: Camera[] = [
-  { id: 1, name: "Entrada principal", location: "Portaria norte", zone: "Acesso", protocol: "RTSP", streamUrl: "rtsp://simulado/entrada", status: "online", motion: false, scene: "day" },
-  { id: 2, name: "Recepção", location: "Bloco administrativo", zone: "Lobby", protocol: "RTSP", streamUrl: "rtsp://simulado/recepcao", status: "online", motion: true, scene: "day" },
-  { id: 3, name: "Pátio logístico", location: "Docas 01–04", zone: "Operação", protocol: "RTSP", streamUrl: "rtsp://simulado/patio", status: "online", motion: false, scene: "day" },
-  { id: 4, name: "Corredor leste", location: "Nível 2", zone: "Interno", protocol: "RTSP", streamUrl: "rtsp://simulado/corredor", status: "online", motion: false, scene: "night" },
-  { id: 5, name: "Estacionamento", location: "Setor visitante", zone: "Externo", protocol: "RTSP", streamUrl: "rtsp://simulado/estacionamento", status: "online", motion: true, scene: "night" },
-  { id: 6, name: "Sala de servidores", location: "Subsolo", zone: "Crítico", protocol: "RTSP", streamUrl: "rtsp://simulado/servidores", status: "online", motion: false, scene: "night" },
-  { id: 7, name: "Saída de emergência", location: "Ala oeste", zone: "Acesso", protocol: "RTSP", streamUrl: "rtsp://simulado/saida", status: "offline", motion: false, scene: "night" },
-  { id: 8, name: "Perímetro sul", location: "Cerca externa", zone: "Externo", protocol: "RTSP", streamUrl: "rtsp://simulado/perimetro", status: "online", motion: false, scene: "night" },
+  { id: 1, installationId: 1, name: "Entrada principal", location: "Portaria norte", zone: "Acesso", tags: "acesso,perímetro", protocol: "RTSP", streamUrl: "rtsp://simulado/entrada", status: "online", motion: false, scene: "day" },
+  { id: 2, installationId: 1, name: "Recepção", location: "Bloco administrativo", zone: "Lobby", tags: "público,atendimento", protocol: "RTSP", streamUrl: "rtsp://simulado/recepcao", status: "online", motion: true, scene: "day" },
+  { id: 3, installationId: 1, name: "Pátio logístico", location: "Docas 01–04", zone: "Operação", tags: "logística,docas", protocol: "RTSP", streamUrl: "rtsp://simulado/patio", status: "online", motion: false, scene: "day" },
+  { id: 4, installationId: 1, name: "Corredor leste", location: "Nível 2", zone: "Interno", tags: "interno,rota", protocol: "RTSP", streamUrl: "rtsp://simulado/corredor", status: "online", motion: false, scene: "night" },
+  { id: 5, installationId: 1, name: "Estacionamento", location: "Setor visitante", zone: "Externo", tags: "veículos,perímetro", protocol: "RTSP", streamUrl: "rtsp://simulado/estacionamento", status: "online", motion: true, scene: "night" },
+  { id: 6, installationId: 1, name: "Sala de servidores", location: "Subsolo", zone: "Crítico", tags: "crítico,infraestrutura", protocol: "RTSP", streamUrl: "rtsp://simulado/servidores", status: "online", motion: false, scene: "night" },
+  { id: 7, installationId: 1, name: "Saída de emergência", location: "Ala oeste", zone: "Acesso", tags: "emergência,rota", protocol: "RTSP", streamUrl: "rtsp://simulado/saida", status: "offline", motion: false, scene: "night" },
+  { id: 8, installationId: 1, name: "Perímetro sul", location: "Cerca externa", zone: "Externo", tags: "perímetro,externo", protocol: "RTSP", streamUrl: "rtsp://simulado/perimetro", status: "online", motion: false, scene: "night" },
 ];
 
 const baseEvents: SystemEvent[] = [
@@ -34,6 +34,9 @@ export function createDemoStore(): CctvStore {
   let startedAt = Date.now();
   let snapshot: SystemSnapshot = {
     cameras: baseCameras,
+    installations: [{ id: 1, name: "Instalação central", location: "São Paulo · BR", timezone: "America/Sao_Paulo", status: "active" }],
+    cameraHealth: baseCameras.map((camera) => ({ cameraId: camera.id, consecutiveFailures: camera.status === "offline" ? 1 : 0, lastCheckedAt: now, lastSuccessAt: now, maintenanceNote: camera.status === "offline" ? "Inspeção preventiva solicitada" : "", maintenanceStatus: camera.status === "offline" ? "scheduled" as const : "none" as const })),
+    evidenceRecords: [],
     recordings: baseCameras.flatMap((camera, cameraIndex) => Array.from({ length: 6 }, (_, index) => ({
       id: camera.id * 100 + index,
       cameraId: camera.id,
@@ -89,6 +92,15 @@ export function createDemoStore(): CctvStore {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
+    async upsertInstallation(input: import("./types").InstallationInput & { id?: number }) {
+      const existing = input.id ? snapshot.installations.find((installation) => installation.id === input.id) : undefined;
+      if (existing) snapshot = { ...snapshot, installations: snapshot.installations.map((installation) => installation.id === existing.id ? { ...existing, ...input } : installation) };
+      else {
+        const id = Math.max(...snapshot.installations.map((installation) => installation.id), 0) + 1;
+        snapshot = { ...snapshot, installations: [...snapshot.installations, { ...input, id }] };
+      }
+      emit();
+    },
     async upsertCamera(input: CameraInput & { id?: number }) {
       const existing = input.id ? snapshot.cameras.find((camera) => camera.id === input.id) : undefined;
       if (existing) {
@@ -97,6 +109,7 @@ export function createDemoStore(): CctvStore {
         const id = Math.max(...snapshot.cameras.map((camera) => camera.id), 0) + 1;
         snapshot = { ...snapshot, cameras: [...snapshot.cameras, { ...input, id, motion: false, scene: "day" }] };
         snapshot = { ...snapshot, retentionPolicies: [...snapshot.retentionPolicies, { cameraId: id, retentionDays: 30, quality: "1080p", recordingMode: "continuous" }] };
+        snapshot = { ...snapshot, cameraHealth: [...snapshot.cameraHealth, { cameraId: id, consecutiveFailures: 0, lastCheckedAt: Date.now(), lastSuccessAt: Date.now(), maintenanceNote: "", maintenanceStatus: "none" }] };
       }
       emit();
     },

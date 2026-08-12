@@ -12,9 +12,11 @@ import {
 
 export default __t.row({
   id: __t.u32().primaryKey(),
+  installationId: __t.u32().name("installation_id"),
   name: __t.string(),
   location: __t.string(),
   zone: __t.string(),
+  tags: __t.string(),
   protocol: __t.string(),
   streamUrl: __t.string().name("stream_url"),
   status: __t.string(),

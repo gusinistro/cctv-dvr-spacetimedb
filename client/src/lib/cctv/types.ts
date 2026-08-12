@@ -1,19 +1,54 @@
-export type UserRole = "admin" | "viewer";
+export type UserRole = "admin" | "operator" | "auditor" | "technician" | "viewer";
+export type OperationalCapability = "live_view" | "export" | "acknowledge" | "review_analysis" | "manage_cameras" | "manage_retention" | "manage_roles" | "manage_biometrics" | "diagnostics";
 export type CameraStatus = "online" | "offline";
-export type EventType = "motion" | "offline" | "storage";
+export type EventType = "motion" | "offline" | "storage" | "health";
 export type Severity = "critical" | "warning" | "info";
 export type RecordingMode = "continuous" | "motion";
 
 export type Camera = {
   id: number;
+  installationId: number;
   name: string;
   location: string;
   zone: string;
+  tags: string;
   protocol: "RTSP";
   streamUrl: string;
   status: CameraStatus;
   motion: boolean;
   scene: "day" | "night";
+};
+
+export type Installation = {
+  id: number;
+  name: string;
+  location: string;
+  timezone: string;
+  status: "active" | "maintenance" | "inactive";
+};
+
+export type InstallationInput = Omit<Installation, "id">;
+
+export type CameraHealth = {
+  cameraId: number;
+  consecutiveFailures: number;
+  lastCheckedAt: number;
+  lastSuccessAt: number;
+  maintenanceNote: string;
+  maintenanceStatus: "none" | "scheduled" | "in_progress" | "completed";
+  maintenanceDueAt?: number;
+};
+
+export type EvidenceRecord = {
+  id: number;
+  analysisEventId: number;
+  cameraId: number;
+  evidenceRef: string;
+  sha256: string;
+  createdAt: number;
+  exportedAt?: number;
+  signedExportRef?: string;
+  signatureAlgorithm?: string;
 };
 
 export type Recording = {
@@ -43,7 +78,10 @@ export type RetentionPolicy = {
 };
 
 export type SystemSnapshot = {
+  installations: Installation[];
   cameras: Camera[];
+  cameraHealth: CameraHealth[];
+  evidenceRecords: EvidenceRecord[];
   recordings: Recording[];
   events: SystemEvent[];
   retentionPolicies: RetentionPolicy[];
@@ -64,6 +102,7 @@ export type EventFilters = {
 export type CameraInput = Omit<Camera, "id" | "motion" | "scene">;
 
 export type CctvCommands = {
+  upsertInstallation(input: InstallationInput & { id?: number }): Promise<void>;
   upsertCamera(input: CameraInput & { id?: number }): Promise<void>;
   setRetention(policy: RetentionPolicy): Promise<void>;
   acknowledgeEvent(id: number): Promise<void>;
