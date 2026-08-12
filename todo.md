@@ -1,0 +1,24 @@
+# Project TODO
+
+- [x] Documentar a arquitetura do cliente SpacetimeDB WASM, as limitações do ambiente gerenciado e o modo de simulação local.
+- [x] Configurar o módulo SpacetimeDB com tabelas `cameras`, `recordings`, `events`, `retention_policies` e controles de acesso por papel.
+- [x] Implementar o módulo SpacetimeDB compilado como WebAssembly e uma camada cliente reativa por bindings TypeScript/WebSocket, com fallback explícito de demonstração quando o módulo não estiver conectado.
+- [x] Construir um layout de operação premium, responsivo e acessível com navegação persistente e modo escuro.
+- [x] Criar painel multi-câmera com escolhas de grade 1x1, 2x2, 3x3 e 4x4.
+- [x] Criar simulador em canvas para feeds CCTV com timestamp, rótulo da câmera, ciclos dia/noite e indicação de movimento.
+- [x] Implementar dashboard com câmeras ativas, utilização simulada de armazenamento, uptime, gráfico de atividade e últimos alertas.
+- [x] Implementar cadastro, edição, agrupamento, ativação e visualização de câmeras com campos de protocolo RTSP como placeholder.
+- [x] Implementar timeline de gravações por câmera, segmentos simulados, playback, pausa e seek.
+- [x] Implementar eventos de movimento, câmera offline e disco cheio, com severidade, filtros e atualização reativa.
+- [x] Implementar configuração de retenção, qualidade e agenda de gravação contínua ou por movimento por câmera.
+- [x] Restringir rotas e mutações administrativas para o papel `admin`, mantendo o papel `viewer` em modo somente leitura.
+- [x] Implementar filtro compartilhado de câmera, intervalo e tipo de evento para exportações de CSV e relatório PDF.
+- [x] Configurar o painel para apontar para a instância local do SpacetimeDB e para o banco `spacevision-dvr-local` publicado localmente.
+- [x] Validar a conexão WebSocket local, as subscrições reativas e o fallback de demonstração no painel.
+- [x] Atualizar a documentação para instruir a inicialização da instância local junto com o painel web.
+- [x] Cobrir em testes a resolução automática da instância local e o fallback explícito para o simulador quando não houver destino SpacetimeDB.
+- [x] Testar a criação efetiva da store de demonstração quando nenhuma URI e banco SpacetimeDB forem resolvidos.
+- [x] Criar testes Vitest para regras de filtros, autorização por papel e exportações.
+- [x] Realizar validação visual manual do painel em desktop e mobile, corrigir erros e documentar instalação, integração SpacetimeDB e limitações de simulação.
+- [x] Extrair e testar o modelo de dados usado pelo relatório PDF para provar que recebe somente o conjunto de eventos filtrado.
+- [ ] Publicar o código finalizado no repositório GitHub selecionado.

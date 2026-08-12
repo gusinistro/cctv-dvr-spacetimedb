@@ -1,0 +1,168 @@
+# Backup Target Definitions
+# Define all possible backup destinations
+
+targets:
+  # Amazon S3
+  aws_s3:
+    type: "s3"
+    endpoint: "https://s3.amazonaws.com"
+    regions:
+      primary:
+        name: "us-east-1"
+        bucket: "cctv-backups-primary"
+        prefix: "spacetimedb/"
+      secondary:
+        name: "eu-west-1"
+        bucket: "cctv-backups-secondary"
+        prefix: "spacetimedb/"
+    storage_class: "INTELLIGENT_TIERING"
+    versioning: true
+    encryption:
+      enabled: true
+      algorithm: "AES256"
+
+  # Microsoft Azure
+  azure_blob:
+    type: "azure"
+    endpoint: "https://{account}.blob.core.windows.net"
+    containers:
+      primary:
+        name: "spacetimedb-primary"
+        region: "eastus"
+      secondary:
+        name: "spacetimedb-secondary"
+        region: "westeurope"
+    access_tier: "Hot"
+    redundancy: "geo-redundant"
+    encryption:
+      enabled: true
+      key_vault_uri: "https://{vault}.vault.azure.net"
+
+  # Google Cloud Storage
+  gcs:
+    type: "gcs"
+    project_id: "my-project"
+    buckets:
+      primary:
+        name: "cctv-backups-primary"
+        location: "US"
+      secondary:
+        name: "cctv-backups-secondary"
+        location: "EU"
+    storage_class: "STANDARD"
+    versioning: true
+    lifecycle:
+      delete_after_days: 90
+
+  # On-Premises NFS
+  nfs_primary:
+    type: "nfs"
+    server: "backup-server.local"
+    path: "/exports/spacetimedb-primary"
+    port: 2049
+    version: "4"
+    mount_options:
+      - "hard"
+      - "intr"
+      - "timeo=600"
+      - "retrans=3"
+    snapshot_enabled: true
+
+  # On-Premises iSCSI
+  iscsi_backup:
+    type: "iscsi"
+    target: "iqn.2024-01.com.example:storage.backup"
+    portal: "backup-server.local:3260"
+    lun: 0
+    filesystem: "ext4"
+    snapshot_enabled: true
+
+  # Remote SpacetimeDB Instance
+  spacetimedb_remote:
+    type: "spacetimedb"
+    endpoint: "grpc://backup.example.com:3000"
+    tls:
+      enabled: true
+      ca_cert: "/etc/ssl/certs/ca.crt"
+      client_cert: "/etc/ssl/certs/client.crt"
+      client_key: "/etc/ssl/private/client.key"
+    connection_pool:
+      min_connections: 2
+      max_connections: 10
+      idle_timeout_secs: 300
+
+replication_policies:
+  # Policy for high-frequency events
+  high_frequency:
+    tables:
+      - "frame_detections"
+      - "activity_logs"
+    mode: "asynchronous"
+    batch_size: 1000
+    batch_timeout_ms: 50
+    sync_interval_secs: 60
+
+  # Policy for critical alerts
+  critical_alerts:
+    tables:
+      - "anomaly_events"
+      - "security_alerts"
+      - "intrusion_alerts"
+    mode: "synchronous"
+    batch_size: 100
+    batch_timeout_ms: 500
+    sync_interval_secs: 5
+
+  # Policy for tracking data
+  tracking_data:
+    tables:
+      - "person_tracks"
+      - "vehicle_tracks"
+      - "trajectory_history"
+    mode: "hybrid"
+    batch_size: 500
+    batch_timeout_ms: 100
+    sync_interval_secs: 300
+
+network_policies:
+  # Network optimization
+  bandwidth:
+    max_mbps: 100              # Maximum bandwidth for replication
+    burst_mbps: 200            # Burst capacity
+
+  compression:
+    enabled: true
+    algorithm: "gzip"          # gzip, brotli, zstd
+    level: 6                   # 1-9, higher = more compression
+
+  deduplication:
+    enabled: true
+    window_size: "4KB"
+
+  # Retry policy
+  retry:
+    max_attempts: 3
+    initial_backoff_ms: 100
+    max_backoff_ms: 10000
+    backoff_multiplier: 2.0
+
+disaster_recovery:
+  # Point-in-time recovery
+  pitr:
+    enabled: true
+    retention_days: 30
+    snapshot_interval_hours: 6
+
+  # Cross-region failover
+  failover:
+    auto_failover: true
+    failover_priority:
+      - "aws_s3"
+      - "azure_blob"
+      - "nfs_primary"
+    promotion_timeout_secs: 120
+
+  # Conflict resolution
+  conflict_resolution:
+    strategy: "last-write-wins"  # last-write-wins or vector-clock
+    timestamp_precision: "millisecond"

@@ -1,0 +1,217 @@
+version: '3.9'
+
+services:
+  # SpacetimeDB Primary (Local)
+  spacetimedb-primary:
+    image: clockworklabs/spacetimedb:latest
+    container_name: spacetimedb-primary
+    hostname: spacetimedb-primary
+    ports:
+      - "3000:3000"            # gRPC API
+      - "8080:8080"            # HTTP
+    environment:
+      STDB_BIND_ADDRESS: "0.0.0.0:3000"
+      STDB_HTTP_BIND_ADDRESS: "0.0.0.0:8080"
+      STDB_LOG_LEVEL: "info"
+      RUST_LOG: "spacetimedb=info"
+    volumes:
+      - spacetimedb_data:/data/spacetimedb
+      - ./config/spacetime.schema:/config/schema
+      - ./ssl:/etc/ssl:ro
+    networks:
+      - cctv-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    depends_on:
+      - cctv-network
+
+  # Replication Manager
+  replication-manager:
+    build:
+      context: ../rust/replication-manager
+      dockerfile: Dockerfile
+    container_name: replication-manager
+    hostname: replication-manager
+    environment:
+      REPLICATION_CONFIG: /config/replication.yaml
+      RUST_LOG: "replication_manager=info"
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AZURE_STORAGE_ACCOUNT: ${AZURE_STORAGE_ACCOUNT}
+      AZURE_STORAGE_KEY: ${AZURE_STORAGE_KEY}
+    volumes:
+      - ./config/replication.yaml:/config/replication.yaml:ro
+      - ./config/backup-targets.yaml:/config/backup-targets.yaml:ro
+      - ./config/ssl-certs.yaml:/config/ssl-certs.yaml:ro
+      - ./config/policies.yaml:/config/policies.yaml:ro
+      - spacetimedb_backups:/backups
+      - ./ssl:/etc/ssl:ro
+      - replication_logs:/var/log/spacetimedb
+    networks:
+      - cctv-network
+    depends_on:
+      - spacetimedb-primary
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9090/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Vision Processing Pipeline (C++)
+  vision-pipeline:
+    build:
+      context: ../cpp/vision-pipeline
+      dockerfile: Dockerfile
+    container_name: vision-pipeline
+    hostname: vision-pipeline
+    environment:
+      SPACETIMEDB_HOST: spacetimedb-primary
+      SPACETIMEDB_PORT: 3000
+      LOG_LEVEL: info
+    volumes:
+      - ./config/models-config.yaml:/config/models-config.yaml:ro
+      - vision_models:/models
+    networks:
+      - cctv-network
+    depends_on:
+      - spacetimedb-primary
+    restart: unless-stopped
+    runtime: nvidia              # For GPU support
+
+  # API Server
+  api-server:
+    build:
+      context: ../rust/api-server
+      dockerfile: Dockerfile
+    container_name: api-server
+    hostname: api-server
+    ports:
+      - "5000:5000"            # REST API
+      - "5001:5001"            # gRPC
+    environment:
+      SPACETIMEDB_HOST: spacetimedb-primary
+      SPACETIMEDB_PORT: 3000
+      RUST_LOG: "api_server=info"
+    networks:
+      - cctv-network
+    depends_on:
+      - spacetimedb-primary
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Monitoring & Metrics (Prometheus)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - cctv-network
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+
+  # Grafana Dashboard
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_INSTALL_PLUGINS: 'grafana-piechart-panel'
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./config/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    networks:
+      - cctv-network
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # ELK Stack - Elasticsearch
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.0.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - cctv-network
+    restart: unless-stopped
+
+  # ELK Stack - Logstash
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.0.0
+    container_name: logstash
+    volumes:
+      - ./config/logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - replication_logs:/logs:ro
+    environment:
+      - "LS_JAVA_OPTS=-Xmx256m -Xms256m"
+    ports:
+      - "5000:5000/udp"
+    networks:
+      - cctv-network
+    depends_on:
+      - elasticsearch
+    restart: unless-stopped
+
+  # ELK Stack - Kibana
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.0.0
+    container_name: kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    networks:
+      - cctv-network
+    depends_on:
+      - elasticsearch
+    restart: unless-stopped
+
+networks:
+  cctv-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  spacetimedb_data:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+  spacetimedb_backups:
+    driver: local
+  replication_logs:
+    driver: local
+  vision_models:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  elasticsearch_data:
+    driver: local

@@ -1,0 +1,136 @@
+# Retention and Sync Policies
+
+policies:
+  # Event retention by table
+  event_retention:
+    face_events:
+      retention_days: 90
+      archive_after_days: 30
+      compress_archived: true
+    
+    plate_events:
+      retention_days: 90
+      archive_after_days: 30
+      compress_archived: true
+    
+    anomaly_events:
+      retention_days: 180        # Longer for security events
+      archive_after_days: 30
+      compress_archived: true
+    
+    person_tracks:
+      retention_days: 30
+      archive_after_days: 7
+      compress_archived: true
+    
+    vehicle_tracks:
+      retention_days: 30
+      archive_after_days: 7
+      compress_archived: true
+    
+    activity_logs:
+      retention_days: 7          # Short retention for logs
+      archive_after_days: 1
+      compress_archived: true
+
+  # Backup retention
+  backup_retention:
+    local:
+      daily: 7                   # Keep 7 daily backups
+      weekly: 4                  # Keep 4 weekly backups
+      monthly: 12                # Keep 12 monthly backups
+      yearly: 5                  # Keep 5 yearly backups
+    
+    remote:
+      daily: 14
+      weekly: 8
+      monthly: 24
+      yearly: 10
+
+  # Storage tiering
+  storage_tiering:
+    hot:
+      age_days: 0
+      storage_type: "fast"      # SSD or NFS fast tier
+    
+    warm:
+      age_days: 30
+      storage_type: "standard"  # Standard storage
+    
+    cold:
+      age_days: 90
+      storage_type: "archive"   # Archive storage (S3 Glacier, etc.)
+
+  # Data classification
+  data_classification:
+    # Personally Identifiable Information
+    pii:
+      tables:
+        - "face_embeddings"
+        - "person_tracks"
+      retention_days: 30
+      encryption: "AES-256"
+      access_log: true
+    
+    # Security events
+    security:
+      tables:
+        - "anomaly_events"
+        - "security_alerts"
+        - "intrusion_attempts"
+      retention_days: 180
+      encryption: "AES-256"
+      access_log: true
+      immutable: false           # Can be deleted after retention
+    
+    # Operational data
+    operational:
+      tables:
+        - "activity_logs"
+        - "sync_logs"
+        - "health_events"
+      retention_days: 7
+      encryption: "none"        # Optional
+      access_log: false
+
+  # Compliance policies
+  compliance:
+    gdpr:
+      enabled: true
+      right_to_be_forgotten: true
+      data_portability: true
+      anonymization_enabled: true
+    
+    ccpa:
+      enabled: true
+      sale_opt_out: true
+      access_requests_enabled: true
+    
+    hipaa:
+      enabled: false
+      audit_logging: true
+      encryption_at_rest: true
+      encryption_in_transit: true
+
+# Backup verification
+verification:
+  enabled: true
+  schedule: "daily"            # daily, weekly, monthly
+  time: "02:00"                # UTC
+  verify_integrity: true        # Verify checksums
+  restore_test: true            # Test restore from backup
+  restore_test_retention: 24    # Keep test restore for 24 hours
+
+# Disaster recovery objectives
+rpo_rto:
+  # Recovery Point Objective (max data loss)
+  rpo_minutes: 5
+  
+  # Recovery Time Objective (max downtime)
+  rto_minutes: 15
+  
+  # Backup frequency to meet RPO
+  backup_interval_minutes: 1
+  
+  # Replication frequency to meet RPO
+  replication_interval_seconds: 10

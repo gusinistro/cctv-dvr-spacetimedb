@@ -1,0 +1,9 @@
+node_modules/
+spacetimedb/node_modules/
+dist/
+.spacetimedb/
+.manus-logs/
+.project-config.json
+.env
+.env.*
+!.env.example
