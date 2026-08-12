@@ -63,7 +63,48 @@ const retentionPolicies = table(
   },
 );
 
-const spacetimedb = schema({ actors, cameras, recordings, events, retentionPolicies });
+const analysisEvents = table(
+  { name: "analysis_events", public: true },
+  {
+    id: t.u32().primaryKey().autoInc(),
+    cameraId: t.u32().index("btree"),
+    task: t.string().index("btree"),
+    classification: t.string(),
+    confidence: t.string(),
+    evidenceRef: t.string(),
+    reviewRequired: t.bool(),
+    reviewed: t.bool().index("btree"),
+    biometric: t.bool().index("btree"),
+    createdAt: t.timestamp().index("btree"),
+  },
+);
+
+const biometricControls = table(
+  { name: "biometric_controls", public: true },
+  {
+    id: t.u32().primaryKey(),
+    faceRecognitionEnabled: t.bool(),
+    emotionalSignalEnabled: t.bool(),
+    consentRecorded: t.bool(),
+    humanReviewRequired: t.bool(),
+    retentionDays: t.u32(),
+    updatedAt: t.timestamp(),
+  },
+);
+
+const auditLogs = table(
+  { name: "audit_logs", public: true },
+  {
+    id: t.u32().primaryKey().autoInc(),
+    actor: t.identity().index("btree"),
+    action: t.string().index("btree"),
+    subject: t.string(),
+    details: t.string(),
+    createdAt: t.timestamp().index("btree"),
+  },
+);
+
+const spacetimedb = schema({ actors, cameras, recordings, events, retentionPolicies, analysisEvents, biometricControls, auditLogs });
 export default spacetimedb;
 
 function requireAdmin(ctx: any) {
@@ -71,6 +112,22 @@ function requireAdmin(ctx: any) {
   if (!actor || actor.role !== "admin") {
     throw new SenderError("Ação restrita ao papel admin.");
   }
+}
+
+function audit(ctx: any, action: string, subject: string, details: string) {
+  ctx.db.auditLogs.insert({ id: 0, actor: ctx.sender, action, subject, details, createdAt: ctx.timestamp });
+}
+
+function activeBiometricControls(ctx: any) {
+  return ctx.db.biometricControls.id.find(1) ?? {
+    id: 1,
+    faceRecognitionEnabled: false,
+    emotionalSignalEnabled: false,
+    consentRecorded: false,
+    humanReviewRequired: true,
+    retentionDays: 7,
+    updatedAt: ctx.timestamp,
+  };
 }
 
 function seedDemoData(ctx: any) {
@@ -197,5 +254,46 @@ export const log_system_event = spacetimedb.reducer(
   (ctx, input) => {
     requireAdmin(ctx);
     ctx.db.events.insert({ id: 0, ...input, occurredAt: ctx.timestamp, acknowledged: false });
+  },
+);
+
+export const set_biometric_controls = spacetimedb.reducer(
+  { faceRecognitionEnabled: t.bool(), emotionalSignalEnabled: t.bool(), consentRecorded: t.bool(), humanReviewRequired: t.bool(), retentionDays: t.u32() },
+  (ctx, input) => {
+    requireAdmin(ctx);
+    if (input.retentionDays === 0 || input.retentionDays > 30) throw new SenderError("A retenção biométrica deve ficar entre 1 e 30 dias.");
+    if ((input.faceRecognitionEnabled || input.emotionalSignalEnabled) && !input.consentRecorded) throw new SenderError("Recursos biométricos exigem consentimento ou fundamento autorizado registrado.");
+    if (!input.humanReviewRequired) throw new SenderError("Revisão humana é obrigatória para recursos biométricos.");
+    const existing = ctx.db.biometricControls.id.find(1);
+    const value = { id: 1, ...input, updatedAt: ctx.timestamp };
+    if (existing) ctx.db.biometricControls.id.update(value);
+    else ctx.db.biometricControls.insert(value);
+    audit(ctx, "biometric_controls_updated", "biometric_controls:1", JSON.stringify({ face: input.faceRecognitionEnabled, emotion: input.emotionalSignalEnabled, retentionDays: input.retentionDays }));
+  },
+);
+
+export const log_analysis_event = spacetimedb.reducer(
+  { cameraId: t.u32(), task: t.string(), classification: t.string(), confidence: t.string(), evidenceRef: t.string(), reviewRequired: t.bool() },
+  (ctx, input) => {
+    requireAdmin(ctx);
+    if (!ctx.db.cameras.id.find(input.cameraId)) throw new SenderError("Câmera não encontrada.");
+    const biometric = input.task === "faces" || input.task === "emotion";
+    const controls = activeBiometricControls(ctx);
+    if (biometric && (!controls.consentRecorded || !controls.humanReviewRequired || (input.task === "faces" && !controls.faceRecognitionEnabled) || (input.task === "emotion" && !controls.emotionalSignalEnabled))) {
+      throw new SenderError("Evento biométrico bloqueado pela política ativa.");
+    }
+    const created = ctx.db.analysisEvents.insert({ id: 0, ...input, reviewRequired: biometric ? true : input.reviewRequired, reviewed: false, biometric, createdAt: ctx.timestamp });
+    audit(ctx, "analysis_event_logged", `analysis_event:${created.id}`, JSON.stringify({ task: input.task, cameraId: input.cameraId, biometric }));
+  },
+);
+
+export const review_analysis_event = spacetimedb.reducer(
+  { id: t.u32(), decision: t.string() },
+  (ctx, { id, decision }) => {
+    requireAdmin(ctx);
+    const event = ctx.db.analysisEvents.id.find(id);
+    if (!event) throw new SenderError("Evento de análise não encontrado.");
+    ctx.db.analysisEvents.id.update({ ...event, reviewed: true });
+    audit(ctx, "analysis_event_reviewed", `analysis_event:${id}`, JSON.stringify({ decision }));
   },
 );

@@ -6,6 +6,12 @@
 dist/
 build/
 *.dist
+desktop/dist/
+desktop/src-tauri/target/
+desktop/model-packs/
+desktop/vision-worker/.test-models/
+desktop/vision-worker/__pycache__/
+.spacetimedb/
 
 # Environment variables
 .env

@@ -18,6 +18,41 @@ export const Actors = __t.object("Actors", {
 });
 export type Actors = __Infer<typeof Actors>;
 
+export const AnalysisEvents = __t.object("AnalysisEvents", {
+  id: __t.u32(),
+  cameraId: __t.u32(),
+  task: __t.string(),
+  classification: __t.string(),
+  confidence: __t.string(),
+  evidenceRef: __t.string(),
+  reviewRequired: __t.bool(),
+  reviewed: __t.bool(),
+  biometric: __t.bool(),
+  createdAt: __t.timestamp(),
+});
+export type AnalysisEvents = __Infer<typeof AnalysisEvents>;
+
+export const AuditLogs = __t.object("AuditLogs", {
+  id: __t.u32(),
+  actor: __t.identity(),
+  action: __t.string(),
+  subject: __t.string(),
+  details: __t.string(),
+  createdAt: __t.timestamp(),
+});
+export type AuditLogs = __Infer<typeof AuditLogs>;
+
+export const BiometricControls = __t.object("BiometricControls", {
+  id: __t.u32(),
+  faceRecognitionEnabled: __t.bool(),
+  emotionalSignalEnabled: __t.bool(),
+  consentRecorded: __t.bool(),
+  humanReviewRequired: __t.bool(),
+  retentionDays: __t.u32(),
+  updatedAt: __t.timestamp(),
+});
+export type BiometricControls = __Infer<typeof BiometricControls>;
+
 export const Cameras = __t.object("Cameras", {
   id: __t.u32(),
   name: __t.string(),

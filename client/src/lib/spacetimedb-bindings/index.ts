@@ -36,10 +36,13 @@ import {
 // Import all reducer arg schemas
 import AcknowledgeEventReducer from "./acknowledge_event_reducer";
 import BootstrapAdminReducer from "./bootstrap_admin_reducer";
+import LogAnalysisEventReducer from "./log_analysis_event_reducer";
 import LogSystemEventReducer from "./log_system_event_reducer";
 import RegisterViewerReducer from "./register_viewer_reducer";
+import ReviewAnalysisEventReducer from "./review_analysis_event_reducer";
 import SeedDemoReducer from "./seed_demo_reducer";
 import SetActorRoleReducer from "./set_actor_role_reducer";
+import SetBiometricControlsReducer from "./set_biometric_controls_reducer";
 import SetRetentionPolicyReducer from "./set_retention_policy_reducer";
 import UpsertCameraReducer from "./upsert_camera_reducer";
 
@@ -47,6 +50,9 @@ import UpsertCameraReducer from "./upsert_camera_reducer";
 
 // Import all table schema definitions
 import ActorsRow from "./actors_table";
+import AnalysisEventsRow from "./analysis_events_table";
+import AuditLogsRow from "./audit_logs_table";
+import BiometricControlsRow from "./biometric_controls_table";
 import CamerasRow from "./cameras_table";
 import EventsRow from "./events_table";
 import RecordingsRow from "./recordings_table";
@@ -70,6 +76,63 @@ const tablesSchema = __schema({
       { name: 'actors_identity_key', constraint: 'unique', columns: ['identity'] },
     ],
   }, ActorsRow),
+  analysisEvents: __table({
+    name: 'analysis_events',
+    indexes: [
+      { accessor: 'biometric', name: 'analysis_events_biometric_idx_btree', algorithm: 'btree', columns: [
+        'biometric',
+      ] },
+      { accessor: 'cameraId', name: 'analysis_events_camera_id_idx_btree', algorithm: 'btree', columns: [
+        'cameraId',
+      ] },
+      { accessor: 'createdAt', name: 'analysis_events_created_at_idx_btree', algorithm: 'btree', columns: [
+        'createdAt',
+      ] },
+      { accessor: 'id', name: 'analysis_events_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'reviewed', name: 'analysis_events_reviewed_idx_btree', algorithm: 'btree', columns: [
+        'reviewed',
+      ] },
+      { accessor: 'task', name: 'analysis_events_task_idx_btree', algorithm: 'btree', columns: [
+        'task',
+      ] },
+    ],
+    constraints: [
+      { name: 'analysis_events_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, AnalysisEventsRow),
+  auditLogs: __table({
+    name: 'audit_logs',
+    indexes: [
+      { accessor: 'action', name: 'audit_logs_action_idx_btree', algorithm: 'btree', columns: [
+        'action',
+      ] },
+      { accessor: 'actor', name: 'audit_logs_actor_idx_btree', algorithm: 'btree', columns: [
+        'actor',
+      ] },
+      { accessor: 'createdAt', name: 'audit_logs_created_at_idx_btree', algorithm: 'btree', columns: [
+        'createdAt',
+      ] },
+      { accessor: 'id', name: 'audit_logs_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'audit_logs_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, AuditLogsRow),
+  biometricControls: __table({
+    name: 'biometric_controls',
+    indexes: [
+      { accessor: 'id', name: 'biometric_controls_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'biometric_controls_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, BiometricControlsRow),
   cameras: __table({
     name: 'cameras',
     indexes: [
@@ -148,10 +211,13 @@ const tablesSchema = __schema({
 const reducersSchema = __reducers(
   __reducerSchema("acknowledge_event", AcknowledgeEventReducer),
   __reducerSchema("bootstrap_admin", BootstrapAdminReducer),
+  __reducerSchema("log_analysis_event", LogAnalysisEventReducer),
   __reducerSchema("log_system_event", LogSystemEventReducer),
   __reducerSchema("register_viewer", RegisterViewerReducer),
+  __reducerSchema("review_analysis_event", ReviewAnalysisEventReducer),
   __reducerSchema("seed_demo", SeedDemoReducer),
   __reducerSchema("set_actor_role", SetActorRoleReducer),
+  __reducerSchema("set_biometric_controls", SetBiometricControlsReducer),
   __reducerSchema("set_retention_policy", SetRetentionPolicyReducer),
   __reducerSchema("upsert_camera", UpsertCameraReducer),
 );
