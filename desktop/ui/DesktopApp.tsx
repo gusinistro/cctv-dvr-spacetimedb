@@ -35,6 +35,20 @@ export default function DesktopApp() {
   useEffect(() => { void invoke<OnvifProfile[]>("list_onvif_profiles").then(setProfiles).catch(() => setNotice("Não foi possível abrir o cofre de perfis ONVIF.")); }, []);
   useEffect(() => startDesktopSpacetimeBridge(setSync), []);
   useEffect(() => { if (!analysisCameraId && sync.cameras.length) setAnalysisCameraId(sync.cameras[0].id); }, [analysisCameraId, sync.cameras]);
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.matches("input, textarea, select")) return;
+      const destination = ({ "1": "monitor", "2": "cameras", "3": "analysis", "4": "governance" } as Record<string, Tab | undefined>)[event.key];
+      if (!destination) return;
+      event.preventDefault();
+      setTab(destination);
+      setNotice(`Atalho aplicado: ${destination === "monitor" ? "Operação" : destination === "cameras" ? "Câmeras" : destination === "analysis" ? "Análise" : "Governança"}.`);
+    };
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, []);
   const protectedCount = useMemo(() => capabilities.filter((capability) => capability.requiresConsent).length, [capabilities]);
   const canReview = can(sync.role, "review_analysis");
   const canManageBiometrics = can(sync.role, "manage_biometrics");
