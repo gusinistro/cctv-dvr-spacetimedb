@@ -45,6 +45,14 @@ async function main() {
   try {
     await connection.reducers.bootstrapAdmin({ displayName: "Validação Desktop" });
     await applySubscription(connection);
+    await connection.reducers.upsertInstallation({ id: 0, name: "Unidade de validação", location: "Campinas · BR", timezone: "America/Sao_Paulo", status: "active" });
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    const validationInstallation = Array.from(connection.db.installations.iter()).find((entry: any) => entry.name === "Unidade de validação") as any;
+    if (!validationInstallation) throw new Error("A instalação adicional não foi criada pelo reducer reativo.");
+    await connection.reducers.upsertCamera({ id: 0, installationId: Number(validationInstallation.id), name: "Câmera de validação", location: "Laboratório", zone: "QA", tags: "validação,automação", protocol: "RTSP", streamUrl: "rtsp://simulado/validacao", status: "online" });
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    const taggedCamera = Array.from(connection.db.cameras.iter()).find((entry: any) => entry.name === "Câmera de validação") as any;
+    if (!taggedCamera || taggedCamera.tags !== "validação,automação" || Number(taggedCamera.installationId) !== Number(validationInstallation.id)) throw new Error("A câmera etiquetada não foi vinculada corretamente à instalação.");
     const camera = Array.from(connection.db.cameras.iter())[0] as any;
     if (!camera) throw new Error("Nenhuma câmera semeada para validação.");
     const workerResult = runWorkerFixture();
