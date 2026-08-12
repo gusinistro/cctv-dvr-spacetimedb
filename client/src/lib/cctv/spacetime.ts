@@ -80,6 +80,10 @@ function makeSpacetimeStore(uri: string, databaseName: string): CctvStore {
       if (!actual) return demo.upsertCamera(input);
       await actual.reducers.upsertCamera({ id: input.id ?? 0, ...input });
     },
+    async reportCameraHealth(cameraId, success, maintenanceNote, maintenanceStatus) {
+      if (!actual) return demo.reportCameraHealth(cameraId, success, maintenanceNote, maintenanceStatus);
+      await actual.reducers.reportCameraHealth({ cameraId, success, maintenanceNote, maintenanceStatus, maintenanceDueAt: undefined });
+    },
     async setRetention(policy: RetentionPolicy) {
       if (!actual) return demo.setRetention(policy);
       await actual.reducers.setRetentionPolicy(policy);

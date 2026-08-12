@@ -8,6 +8,7 @@ export function guardCommands(role: UserRole, commands: CctvCommands): CctvComma
   return {
     async upsertInstallation(input) { assertCapability("manage_cameras"); return commands.upsertInstallation(input); },
     async upsertCamera(input) { assertCapability("manage_cameras"); return commands.upsertCamera(input); },
+    async reportCameraHealth(cameraId, success, maintenanceNote, maintenanceStatus) { assertCapability("diagnostics"); return commands.reportCameraHealth(cameraId, success, maintenanceNote, maintenanceStatus); },
     async setRetention(policy) { assertCapability("manage_retention"); return commands.setRetention(policy); },
     async acknowledgeEvent(id) { assertCapability("acknowledge"); return commands.acknowledgeEvent(id); },
     async setCameraStatus(id, status) { assertCapability("manage_cameras"); return commands.setCameraStatus(id, status); },

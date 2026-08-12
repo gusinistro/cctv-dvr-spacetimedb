@@ -39,6 +39,8 @@ export type CameraHealth = {
   maintenanceDueAt?: number;
 };
 
+export type MaintenanceStatus = CameraHealth["maintenanceStatus"];
+
 export type EvidenceRecord = {
   id: number;
   analysisEventId: number;
@@ -104,6 +106,7 @@ export type CameraInput = Omit<Camera, "id" | "motion" | "scene">;
 export type CctvCommands = {
   upsertInstallation(input: InstallationInput & { id?: number }): Promise<void>;
   upsertCamera(input: CameraInput & { id?: number }): Promise<void>;
+  reportCameraHealth(cameraId: number, success: boolean, maintenanceNote: string, maintenanceStatus: MaintenanceStatus): Promise<void>;
   setRetention(policy: RetentionPolicy): Promise<void>;
   acknowledgeEvent(id: number): Promise<void>;
   setCameraStatus(id: number, status: CameraStatus): Promise<void>;

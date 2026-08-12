@@ -75,11 +75,14 @@ describe("controle de acesso e filtros do CCTV", () => {
 
   it("gera CSV somente para o conjunto de eventos já filtrado", () => {
     const cameras = [{ id: 2, name: "Recepção", location: "Lobby", zone: "Lobby", protocol: "RTSP" as const, streamUrl: "rtsp://simulado", status: "online" as const, motion: false, scene: "day" as const }];
-    const csv = buildCsvContent([events[0]], cameras);
+    const eventWithSensitiveMetadata = { ...events[0], evidenceRef: "frame-confidencial.jpg", biometricClassification: "face" };
+    const csv = buildCsvContent([eventWithSensitiveMetadata], cameras);
     expect(csv).toContain("Movimento");
     expect(csv).toContain("Recepção");
     expect(csv).not.toContain("Offline");
     expect(csv).not.toContain("Disco");
+    expect(csv).not.toContain("frame-confidencial.jpg");
+    expect(csv).not.toContain("biometricClassification");
   });
 
   it("prepara o PDF somente para o mesmo conjunto de eventos filtrado", () => {

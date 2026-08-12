@@ -49,6 +49,7 @@ impl Default for BiometricControls {
 #[serde(rename_all = "camelCase")]
 struct AnalysisCapability { key: &'static str, title: &'static str, category: &'static str, requires_consent: bool, model_status: &'static str, review_required: bool }
 
+
 fn extract_tag(xml: &str, suffix: &str) -> Option<String> {
   let start = xml.find(&format!("<{}", suffix)).or_else(|| xml.find(&format!("<d:{}", suffix)))?;
   let content_start = xml[start..].find('>')? + start + 1;
@@ -281,4 +282,5 @@ mod tests {
     assert!(valid_rtsp_url("rtsp://camera.local/stream").is_ok());
     assert!(valid_rtsp_url("https://camera.local/stream").is_err());
   }
+
 }
