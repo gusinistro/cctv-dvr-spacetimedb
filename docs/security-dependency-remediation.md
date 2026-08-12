@@ -15,4 +15,6 @@ Em 12 de agosto de 2026, o projeto executou uma auditoria das dependências de p
 
 As atualizações incluíram versões corrigidas de dependências transitivas relevantes, como `@trpc/server`, `axios`, `drizzle-orm`, `nanoid`, `mermaid`, `dompurify`, `path-to-regexp` e bibliotecas transitivas do ecossistema AWS. A substituição inicialmente sugerida para `path-to-regexp` usava uma faixa aberta, o que selecionou uma versão incompatível com Express 4 e gerou o erro `pathRegexp is not a function`. O override foi fixado em **0.1.13**, uma versão compatível com a API esperada pelo Express, e o painel voltou a responder após reinicialização do servidor.
 
+O repositório possui também o pacote independente em `spacetimedb/`. Ele foi auditado separadamente com `pnpm audit --prod --json`, e o resultado também foi zero vulnerabilidades de produção. Alertas exibidos pelo GitHub podem refletir uma varredura em atraso ou um contexto de análise distinto; o token disponível não possui acesso à API de alertas Dependabot para confirmar cada alerta individualmente.
+
 > A remediação depende de `pnpm-lock.yaml` e das substituições em `package.json`. Ambos devem ser mantidos juntos em qualquer release ou instalação reprodutível.
