@@ -51,6 +51,19 @@ O protótipo usa o executável `ffmpeg` no `PATH` para gravar streams RTSP em se
 
 O workflow `.github/workflows/desktop-build.yml` é executado no `main` para alterações do desktop e pode ser acionado manualmente. A compilação Windows é feita em runner Windows, evitando a alegação enganosa de que um pacote Windows foi produzido por cross-compilação em Linux.
 
+## Instalação e execução
+
+| Plataforma | Instalação | Execução e pré-requisitos |
+|---|---|---|
+| Debian, Ubuntu e derivados | Baixe o arquivo `.deb` produzido e execute `sudo apt install ./SpaceVision\ Desktop_0.1.0_amd64.deb`. | Inicie pelo menu de aplicações ou com `spacevision-desktop`. Instale `ffmpeg` e `python3`; para análise ONNX, crie um ambiente Python local e instale `desktop/vision-worker/requirements.txt`. |
+| Fedora, RHEL e derivados | Baixe o `.rpm` e execute `sudo dnf install ./SpaceVision\ Desktop-0.1.0-1.x86_64.rpm`. | Use as mesmas dependências locais: `ffmpeg`, `python3` e os requisitos do worker quando os modelos forem habilitados. |
+| Distribuições Linux genéricas | Marque o `.AppImage` como executável com `chmod +x SpaceVision\ Desktop_0.1.0_amd64.AppImage` e execute o arquivo. | Se o AppImage não abrir, habilite FUSE compatível com a distribuição ou extraia o pacote conforme a documentação da plataforma. |
+| Windows x86_64 | Baixe o instalador criado pelo job **Windows** em Actions, execute-o e confirme a instalação. | Instale uma versão atual de Python disponível no `PATH` e FFmpeg no `PATH`. O workflow Windows gera o instalador em runner nativo; baixe-o apenas de releases ou artefatos confiáveis do repositório. |
+
+Antes de conectar câmeras reais, inicie a instância local do SpacetimeDB com `pnpm spacetime:local`, publique o módulo com `pnpm spacetime:publish-local` e deixe o banco `spacevision-dvr-local` ativo. O aplicativo indica o estado da sincronização no painel lateral. Para desenvolvimento, execute `pnpm desktop:dev` em vez de instalar um pacote.
+
+> Se a captura RTSP falhar, valide primeiro a URL com o botão **Testar conectividade**, confirme alcance TCP da porta 554 ou da porta configurada e depois verifique se o FFmpeg está disponível no `PATH`. Se a análise local informar que um pacote de modelo está ausente, coloque o modelo aprovado em `desktop/model-packs/` ou configure `SPACEVISION_MODEL_DIR`; o sistema não procura nem baixa pesos automaticamente.
+
 ## Referências
 
 [1]: https://v2.tauri.app/start/ "Tauri — What is Tauri?"

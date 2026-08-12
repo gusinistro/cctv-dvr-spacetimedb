@@ -35,5 +35,6 @@
 - [x] Criar teste ponta a ponta que execute worker, publicação de metadados e persistência em `analysis_events` e `audit_logs`.
 - [x] Adicionar testes de inferência ONNX configurada para objetos, placas e atividades usando o manifesto aprovado.
 - [ ] Sincronizar eventos e metadados de análise com o SpacetimeDB local, sem transmitir vídeo bruto por padrão.
-- [ ] Criar testes, documentação de instalação Windows/Linux e publicar a extensão desktop no GitHub.
-- [ ] Publicar a extensão SpaceVision Desktop e o workflow de builds multiplataforma no repositório GitHub selecionado.
+- [x] Criar testes, pacote Linux e automação de build Windows para a extensão desktop.
+- [x] Documentar a instalação e execução do aplicativo desktop em Windows e Linux, incluindo dependências de Python, FFmpeg e solução de problemas.
+- [x] Publicar a extensão SpaceVision Desktop e o workflow de builds multiplataforma no repositório GitHub selecionado.
