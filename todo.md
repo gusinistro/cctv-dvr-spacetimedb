@@ -44,7 +44,7 @@
 - [x] Criar fluxo operacional de manutenção preventiva com vencimento, estado e ações por câmera além da nota de diagnóstico.
 - [x] Cobrir multi-instalação, etiquetas e saúde/manutenção com testes automatizados de store e reducers reativos.
 - [ ] Adicionar ações web e desktop para transicionar manutenção preventiva por câmera e definir vencimento.
-- [ ] Criar cobertura automatizada dos reducers reativos para instalações, etiquetas e saúde ou manutenção.
+- [x] Criar cobertura automatizada dos reducers reativos para instalações, etiquetas e saúde ou manutenção.
 - [x] Fortalecer o cofre de credenciais local, a trilha de auditoria e a base de papéis operacionais no módulo reativo.
 - [x] Integrar papéis operacionais à interface desktop e às permissões visíveis de revisão e governança.
 - [x] Cobrir em testes as permissões de `operator`, `auditor` e `technician` e a matriz de capacidades do painel.
