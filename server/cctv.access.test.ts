@@ -70,6 +70,8 @@ describe("controle de acesso e filtros do CCTV", () => {
     const camera = store.getSnapshot().cameras.find((item) => item.name === "Portão norte");
     expect(camera).toMatchObject({ installationId: installation!.id, tags: "perímetro,veículos" });
     expect(store.getSnapshot().cameraHealth.find((item) => item.cameraId === camera!.id)).toMatchObject({ consecutiveFailures: 0, maintenanceStatus: "none" });
+    await store.reportCameraHealth(camera!.id, false, "Inspeção programada", "scheduled");
+    expect(store.getSnapshot().cameraHealth.find((item) => item.cameraId === camera!.id)).toMatchObject({ consecutiveFailures: 1, maintenanceStatus: "scheduled", maintenanceNote: "Inspeção programada" });
     store.dispose();
   });
 
