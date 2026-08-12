@@ -25,7 +25,7 @@
 - [x] Definir a arquitetura desktop Windows/Linux e o contrato de integração com o SpaceVision DVR e SpacetimeDB local.
 - [x] Preparar um aplicativo desktop multiplataforma com UI de operação e configuração segura de câmeras.
 - [x] Implementar descoberta ONVIF, diagnóstico de conectividade e ingestão RTSP local com segmentação segura por FFmpeg.
-- [ ] Implementar cadastro persistente de perfis ONVIF e credenciais no cofre local do dispositivo.
+- [x] Implementar cadastro persistente de perfis ONVIF e credenciais no cofre local do dispositivo.
 - [x] Implementar protocolo JSONL local, manifesto de modelos, OCR/anomalia básicos e adaptadores para objetos, placas e atividades.
 - [x] Implementar gestão opcional de reconhecimento facial e sinais emocionais com consentimento, auditoria, retenção mínima e bloqueio de decisões automatizadas.
 - [x] Conectar o manifesto de modelos locais à inferência ONNX de objetos, placas e atividades.
