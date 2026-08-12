@@ -60,7 +60,9 @@
 - [ ] Implementar assinatura real de pacotes de evidência ou clipe e validar a cadeia completa além de metadados.
 - [ ] Adicionar observabilidade de serviço, diagnósticos, telemetria local opcional, cópias de segurança e recuperação documentada.
 - [ ] Elevar a experiência desktop com fluxos de onboarding, operação por atalhos, estados vazios e acessibilidade.
-- [ ] Criar automação de qualidade, segurança de dependências, releases versionadas e documentação de operação empresarial.
+- [x] Criar automação de qualidade, segurança de dependências, releases versionadas e documentação de operação empresarial.
+- [ ] Implementar workflow de release versionada por tag com notas geradas e artefatos desktop validados.
+- [ ] Publicar e verificar o processo de release versionada e a documentação no repositório GitHub.
 - [x] Avaliar e corrigir vulnerabilidades transitivas de produção com atualização compatível, validação integral e registro de impacto.
 - [x] Corrigir a regressão `pathRegexp is not a function` introduzida pela atualização de segurança e revalidar o servidor de desenvolvimento.
 - [ ] Validar o produto ampliado e publicar a evolução profissional no GitHub.
