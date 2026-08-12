@@ -1,4 +1,5 @@
 use chrono::Utc;
+use keyring::Entry;
 use serde::{Deserialize, Serialize};
 use std::{
   collections::HashMap,
@@ -16,6 +17,14 @@ use url::Url;
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct OnvifDevice { endpoint: String, address: String, scopes: Vec<String> }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct OnvifProfile { id: String, name: String, device_service_url: String, rtsp_url: String, username: String, created_at: String, updated_at: String }
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct OnvifProfileInput { id: Option<String>, name: String, device_service_url: String, rtsp_url: String, username: String, password: String }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -53,11 +62,44 @@ fn controls_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
   Ok(path.join("biometric-controls.json"))
 }
 
+fn profiles_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+  let path = app.path().app_data_dir().map_err(|error| error.to_string())?;
+  fs::create_dir_all(&path).map_err(|error| error.to_string())?;
+  Ok(path.join("onvif-profiles.json"))
+}
+
+fn read_profiles(app: &tauri::AppHandle) -> Result<Vec<OnvifProfile>, String> {
+  let path = profiles_path(app)?;
+  if !path.exists() { return Ok(Vec::new()); }
+  serde_json::from_slice(&fs::read(path).map_err(|error| error.to_string())?).map_err(|error| format!("Perfis ONVIF inválidos: {error}"))
+}
+
+fn write_profiles(app: &tauri::AppHandle, profiles: &[OnvifProfile]) -> Result<(), String> {
+  let content = serde_json::to_vec_pretty(profiles).map_err(|error| error.to_string())?;
+  fs::write(profiles_path(app)?, content).map_err(|error| error.to_string())
+}
+
+fn credential_entry(id: &str) -> Result<Entry, String> {
+  Entry::new("com.spacevision.dvr", &format!("onvif-profile:{id}")).map_err(|error| format!("Cofre de credenciais indisponível: {error}"))
+}
+
+fn make_profile_id(name: &str) -> String {
+  let slug: String = name.chars().map(|character| if character.is_ascii_alphanumeric() { character.to_ascii_lowercase() } else { '_' }).collect();
+  format!("{}-{}", slug.trim_matches('_'), Utc::now().timestamp_millis())
+}
+
 fn valid_rtsp_url(endpoint: &str) -> Result<Url, String> {
   let url = Url::parse(endpoint).map_err(|error| format!("URL RTSP inválida: {error}"))?;
   if url.scheme() != "rtsp" && url.scheme() != "rtsps" { return Err("Use os esquemas rtsp:// ou rtsps://.".to_string()); }
   if url.host_str().is_none() { return Err("A URL RTSP não possui host.".to_string()); }
   Ok(url)
+}
+
+fn valid_onvif_url(endpoint: &str) -> Result<(), String> {
+  let url = Url::parse(endpoint).map_err(|error| format!("URL ONVIF inválida: {error}"))?;
+  if url.scheme() != "http" && url.scheme() != "https" { return Err("Use URL ONVIF com http:// ou https://.".to_string()); }
+  if url.host_str().is_none() { return Err("A URL ONVIF não possui host.".to_string()); }
+  Ok(())
 }
 
 fn capture_args(endpoint: &str, output_pattern: &str) -> Vec<String> {
@@ -87,6 +129,39 @@ fn discover_onvif_devices(timeout_ms: u64) -> Result<Vec<OnvifDevice>, String> {
     }
   }
   Ok(devices)
+}
+
+#[tauri::command]
+fn list_onvif_profiles(app: tauri::AppHandle) -> Result<Vec<OnvifProfile>, String> {
+  read_profiles(&app)
+}
+
+#[tauri::command]
+fn save_onvif_profile(app: tauri::AppHandle, input: OnvifProfileInput) -> Result<OnvifProfile, String> {
+  if input.name.trim().is_empty() || input.username.trim().is_empty() { return Err("Nome e usuário ONVIF são obrigatórios.".to_string()); }
+  if input.password.is_empty() { return Err("A senha ONVIF é obrigatória e será guardada no cofre do sistema.".to_string()); }
+  valid_onvif_url(&input.device_service_url)?;
+  valid_rtsp_url(&input.rtsp_url)?;
+  let id = input.id.unwrap_or_else(|| make_profile_id(&input.name));
+  credential_entry(&id)?.set_password(&input.password).map_err(|error| format!("Não foi possível guardar a senha ONVIF: {error}"))?;
+  let now = Utc::now().to_rfc3339();
+  let profile = OnvifProfile { id: id.clone(), name: input.name, device_service_url: input.device_service_url, rtsp_url: input.rtsp_url, username: input.username, created_at: now.clone(), updated_at: now };
+  let mut profiles = read_profiles(&app)?;
+  if let Some(position) = profiles.iter().position(|existing| existing.id == id) { profile.created_at.clone_into(&mut profiles[position].created_at); profiles[position] = profile.clone(); }
+  else { profiles.push(profile.clone()); }
+  write_profiles(&app, &profiles)?;
+  Ok(profile)
+}
+
+#[tauri::command]
+fn delete_onvif_profile(app: tauri::AppHandle, id: String) -> Result<(), String> {
+  let mut profiles = read_profiles(&app)?;
+  let initial = profiles.len();
+  profiles.retain(|profile| profile.id != id);
+  if profiles.len() == initial { return Err("Perfil ONVIF não encontrado.".to_string()); }
+  write_profiles(&app, &profiles)?;
+  let _ = credential_entry(&id)?.delete_credential();
+  Ok(())
 }
 
 #[tauri::command]
@@ -166,7 +241,7 @@ fn save_biometric_controls(app: tauri::AppHandle, controls: BiometricControls) -
 }
 
 pub fn run() {
-  tauri::Builder::default().manage(CaptureRegistry::default()).invoke_handler(tauri::generate_handler![discover_onvif_devices, probe_rtsp, start_rtsp_capture, stop_rtsp_capture, analyze_snapshot, analysis_capabilities, save_biometric_controls]).run(tauri::generate_context!()).expect("erro ao iniciar SpaceVision Desktop");
+  tauri::Builder::default().manage(CaptureRegistry::default()).invoke_handler(tauri::generate_handler![discover_onvif_devices, list_onvif_profiles, save_onvif_profile, delete_onvif_profile, probe_rtsp, start_rtsp_capture, stop_rtsp_capture, analyze_snapshot, analysis_capabilities, save_biometric_controls]).run(tauri::generate_context!()).expect("erro ao iniciar SpaceVision Desktop");
 }
 
 #[cfg(test)]
@@ -197,5 +272,13 @@ mod tests {
     assert!(args.windows(2).any(|pair| pair == ["-rtsp_transport", "tcp"]));
     assert!(args.windows(2).any(|pair| pair == ["-segment_time", "60"]));
     assert_eq!(args.last(), Some(&"/tmp/segment_%05d.mp4".to_string()));
+  }
+
+  #[test]
+  fn valida_urls_onvif_e_rtsp_de_perfis() {
+    assert!(valid_onvif_url("http://camera.local/onvif/device_service").is_ok());
+    assert!(valid_onvif_url("rtsp://camera.local/stream").is_err());
+    assert!(valid_rtsp_url("rtsp://camera.local/stream").is_ok());
+    assert!(valid_rtsp_url("https://camera.local/stream").is_err());
   }
 }

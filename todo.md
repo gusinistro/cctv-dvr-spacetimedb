@@ -25,7 +25,7 @@
 - [x] Definir a arquitetura desktop Windows/Linux e o contrato de integração com o SpaceVision DVR e SpacetimeDB local.
 - [x] Preparar um aplicativo desktop multiplataforma com UI de operação e configuração segura de câmeras.
 - [x] Implementar descoberta ONVIF, diagnóstico de conectividade e ingestão RTSP local com segmentação segura por FFmpeg.
-- [ ] Implementar cadastro persistente de perfis ONVIF e credenciais no cofre local do dispositivo.
+- [x] Implementar cadastro persistente de perfis ONVIF e credenciais no cofre local do dispositivo.
 - [x] Implementar protocolo JSONL local, manifesto de modelos, OCR/anomalia básicos e adaptadores para objetos, placas e atividades.
 - [x] Implementar gestão opcional de reconhecimento facial e sinais emocionais com consentimento, auditoria, retenção mínima e bloqueio de decisões automatizadas.
 - [x] Conectar o manifesto de modelos locais à inferência ONNX de objetos, placas e atividades.
@@ -34,7 +34,7 @@
 - [x] Propagar a origem real da câmera para os eventos de análise e exibir essa referência na fila de revisão.
 - [x] Criar teste ponta a ponta que execute worker, publicação de metadados e persistência em `analysis_events` e `audit_logs`.
 - [x] Adicionar testes de inferência ONNX configurada para objetos, placas e atividades usando o manifesto aprovado.
-- [ ] Sincronizar eventos e metadados de análise com o SpacetimeDB local, sem transmitir vídeo bruto por padrão.
+- [x] Sincronizar eventos e metadados de análise com o SpacetimeDB local, sem transmitir vídeo bruto por padrão.
 - [x] Criar testes, pacote Linux e automação de build Windows para a extensão desktop.
 - [x] Documentar a instalação e execução do aplicativo desktop em Windows e Linux, incluindo dependências de Python, FFmpeg e solução de problemas.
 - [x] Publicar a extensão SpaceVision Desktop e o workflow de builds multiplataforma no repositório GitHub selecionado.
