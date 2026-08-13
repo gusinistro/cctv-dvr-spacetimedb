@@ -83,4 +83,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
-        run: find release-artifacts -type f -print0 | xargs -0 gh release create "$RELEASE_TAG" --title "SpaceVision DVR $RELEASE_TAG" --generate-notes
+        run: |
+          mapfile -d '' assets < <(find release-artifacts -type f -size +0c \( -iname '*.msi' -o -iname '*.exe' -o -iname '*.deb' -o -iname '*.rpm' -o -iname '*.appimage' \) -print0)
+          test "${#assets[@]}" -gt 0
+          gh release create "$RELEASE_TAG" "${assets[@]}" --title "SpaceVision DVR $RELEASE_TAG" --generate-notes
