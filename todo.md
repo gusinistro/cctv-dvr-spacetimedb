@@ -59,7 +59,7 @@
 - [ ] Aplicar enforcement de privacidade a exportações analíticas e testar remoção efetiva de dados expirados.
 - [ ] Implementar assinatura real de pacotes de evidência ou clipe e validar a cadeia completa além de metadados.
 - [ ] Adicionar observabilidade de serviço, diagnósticos, telemetria local opcional, cópias de segurança e recuperação documentada.
-- [ ] Elevar a experiência desktop com fluxos de onboarding, operação por atalhos, estados vazios e acessibilidade.
+- [x] Elevar a experiência desktop com fluxos de onboarding, operação por atalhos, estados vazios e acessibilidade.
 - [x] Criar automação de qualidade, segurança de dependências, releases versionadas e documentação de operação empresarial.
 - [x] Implementar workflow de release versionada por tag com notas geradas e artefatos desktop validados.
 - [x] Publicar e verificar o processo de release versionada e a documentação no repositório GitHub.
@@ -72,7 +72,7 @@
 - [x] Corrigir o contexto Git ausente na etapa de publicação das notas geradas e executar novamente a release v1.0.5.
 - [x] Corrigir a seleção de artefatos para enviar apenas arquivos de pacote à release gerada.
 - [x] Tornar o empacotamento Windows tolerante a falhas transitórias de download do NSIS e repetir a release.
-- [ ] Sincronizar `docs/release-v1.0.5-validation.md` para o repositório publicado e confirmar sua disponibilidade no GitHub.
+- [x] Sincronizar `docs/release-v1.0.5-validation.md` para o repositório publicado e confirmar sua disponibilidade no GitHub.
 - [x] Avaliar e corrigir vulnerabilidades transitivas de produção com atualização compatível, validação integral e registro de impacto.
 - [x] Corrigir a regressão `pathRegexp is not a function` introduzida pela atualização de segurança e revalidar o servidor de desenvolvimento.
 - [ ] Validar o produto ampliado e publicar a evolução profissional no GitHub.
