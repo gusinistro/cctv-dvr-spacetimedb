@@ -42,3 +42,5 @@ Em 13 de agosto de 2026, a mesma conta de validação foi alternada de forma rev
 | `viewer` | Monitoramento e eventos | Criar/editar câmera | Recusada pelo guard de capacidade. |
 
 O comando `pnpm test` executado nessa validação aprovou **11 testes**, incluindo o contrato que combina os bloqueios acima. A evidência visual comprova a ausência das áreas de navegação incompatíveis; a prova de tentativa de ação utiliza os guards de comando e os reducers reativos, evitando depender exclusivamente de ocultação de interface.
+
+Na sessão de navegador sem autenticação, o papel `viewer` foi aberto na tela **Eventos**. Os alertas pendentes apareceram identificados como **Somente leitura**, e nenhum botão de reconhecimento, exportação, alteração de retenção, manutenção ou configuração foi renderizado. Esta é uma prova visual e interativa do limite de leitura. Para os demais papéis, a navegação foi validada visualmente e os comandos incompatíveis foram validados pelo contrato automatizado; a captura interativa de cada botão oculto ou desabilitado permanece pendente para uma sessão autenticada dedicada por papel.
