@@ -5,5 +5,5 @@
   "identifier": "com.spacevision.dvr",
   "build": { "beforeDevCommand": "pnpm desktop:web:dev", "devUrl": "http://127.0.0.1:1420", "beforeBuildCommand": "pnpm desktop:web:build", "frontendDist": "../dist" },
   "app": { "windows": [{ "title": "SpaceVision Desktop", "width": 1280, "height": 820, "minWidth": 960, "minHeight": 650 }], "security": { "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: data:; connect-src 'self' http://ipc.localhost" } },
-  "bundle": { "active": true, "targets": "all", "category": "Utility", "icon": ["icons/icon.png"], "resources": ["../vision-worker"] }
+  "bundle": { "active": true, "targets": "all", "category": "Utility", "icon": ["icons/icon.png", "icons/icon.ico"], "resources": ["../vision-worker"] }
 }
