@@ -1,6 +1,10 @@
 use chrono::Utc;
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
+use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use keyring::Entry;
+use rand_core::OsRng;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::{
   collections::HashMap,
   fs,
@@ -41,13 +45,41 @@ struct CaptureRegistry { children: Mutex<HashMap<String, Child>> }
 #[serde(rename_all = "camelCase")]
 struct BiometricControls { face_recognition_enabled: bool, emotional_signal_enabled: bool, explicit_consent_recorded: bool, human_review_required: bool, retention_days: u8 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct TelemetrySettings { enabled: bool, retention_hours: u16 }
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct TelemetrySummary { enabled: bool, retention_hours: u16, event_count: usize, successful_rtsp_probes: usize, failed_rtsp_probes: usize, average_probe_latency_millis: u128 }
+
+#[derive(Debug, Serialize, Deserialize)]
+struct TelemetryEvent { operation: String, success: bool, latency_millis: u128, recorded_at: String }
+
 impl Default for BiometricControls {
   fn default() -> Self { Self { face_recognition_enabled: false, emotional_signal_enabled: false, explicit_consent_recorded: false, human_review_required: true, retention_days: 7 } }
+}
+
+impl Default for TelemetrySettings {
+  fn default() -> Self { Self { enabled: false, retention_hours: 24 } }
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct AnalysisCapability { key: &'static str, title: &'static str, category: &'static str, requires_consent: bool, model_status: &'static str, review_required: bool }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct EvidenceSignature {
+  evidence_ref: String,
+  sha256: String,
+  signature: String,
+  public_key: String,
+  algorithm: String,
+  signed_at: String,
+  signature_ref: String,
+}
+
 
 fn extract_tag(xml: &str, suffix: &str) -> Option<String> {
   let start = xml.find(&format!("<{}", suffix)).or_else(|| xml.find(&format!("<d:{}", suffix)))?;
@@ -60,6 +92,40 @@ fn controls_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
   let path = app.path().app_data_dir().map_err(|error| error.to_string())?;
   fs::create_dir_all(&path).map_err(|error| error.to_string())?;
   Ok(path.join("biometric-controls.json"))
+}
+
+fn telemetry_settings_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+  let path = app.path().app_data_dir().map_err(|error| error.to_string())?;
+  fs::create_dir_all(&path).map_err(|error| error.to_string())?;
+  Ok(path.join("telemetry-settings.json"))
+}
+
+fn telemetry_events_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+  let path = app.path().app_data_dir().map_err(|error| error.to_string())?;
+  fs::create_dir_all(&path).map_err(|error| error.to_string())?;
+  Ok(path.join("technical-telemetry.json"))
+}
+
+fn read_telemetry_settings(app: &tauri::AppHandle) -> Result<TelemetrySettings, String> {
+  let path = telemetry_settings_path(app)?;
+  if !path.exists() { return Ok(TelemetrySettings::default()); }
+  serde_json::from_slice(&fs::read(path).map_err(|error| error.to_string())?).map_err(|error| format!("Configuração de telemetria inválida: {error}"))
+}
+
+fn read_telemetry_events(app: &tauri::AppHandle) -> Result<Vec<TelemetryEvent>, String> {
+  let path = telemetry_events_path(app)?;
+  if !path.exists() { return Ok(Vec::new()); }
+  serde_json::from_slice(&fs::read(path).map_err(|error| error.to_string())?).map_err(|error| format!("Registros de telemetria inválidos: {error}"))
+}
+
+fn record_technical_telemetry(app: &tauri::AppHandle, operation: &str, success: bool, latency_millis: u128) -> Result<(), String> {
+  let settings = read_telemetry_settings(app)?;
+  if !settings.enabled { return Ok(()); }
+  let cutoff = Utc::now() - chrono::Duration::hours(i64::from(settings.retention_hours));
+  let mut events = read_telemetry_events(app)?.into_iter().filter(|event| chrono::DateTime::parse_from_rfc3339(&event.recorded_at).map(|timestamp| timestamp.with_timezone(&Utc) >= cutoff).unwrap_or(false)).collect::<Vec<_>>();
+  events.push(TelemetryEvent { operation: operation.to_string(), success, latency_millis, recorded_at: Utc::now().to_rfc3339() });
+  if events.len() > 1_000 { events.drain(..events.len() - 1_000); }
+  fs::write(telemetry_events_path(app)?, serde_json::to_vec(&events).map_err(|error| error.to_string())?).map_err(|error| error.to_string())
 }
 
 fn profiles_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -81,6 +147,38 @@ fn write_profiles(app: &tauri::AppHandle, profiles: &[OnvifProfile]) -> Result<(
 
 fn credential_entry(id: &str) -> Result<Entry, String> {
   Entry::new("com.spacevision.dvr", &format!("onvif-profile:{id}")).map_err(|error| format!("Cofre de credenciais indisponível: {error}"))
+}
+
+fn evidence_signing_entry() -> Result<Entry, String> {
+  Entry::new("com.spacevision.dvr", "evidence-ed25519-private-key").map_err(|error| format!("Cofre de assinatura indisponível: {error}"))
+}
+
+fn evidence_signing_key() -> Result<SigningKey, String> {
+  let entry = evidence_signing_entry()?;
+  if let Ok(encoded) = entry.get_password() {
+    let bytes = BASE64.decode(encoded).map_err(|error| format!("Chave de evidência inválida no cofre: {error}"))?;
+    let key: [u8; 32] = bytes.try_into().map_err(|_| "Chave de evidência inválida no cofre.".to_string())?;
+    return Ok(SigningKey::from_bytes(&key));
+  }
+  let key = SigningKey::generate(&mut OsRng);
+  entry.set_password(&BASE64.encode(key.to_bytes())).map_err(|error| format!("Não foi possível guardar a chave de assinatura: {error}"))?;
+  Ok(key)
+}
+
+fn evidence_payload(evidence_ref: &str, sha256: &str) -> Vec<u8> {
+  format!("spacevision-evidence-v1\n{evidence_ref}\n{sha256}").into_bytes()
+}
+
+fn sha256_file(path: &PathBuf) -> Result<String, String> {
+  let bytes = fs::read(path).map_err(|error| format!("Não foi possível ler a evidência: {error}"))?;
+  Ok(format!("{:x}", Sha256::digest(bytes)))
+}
+
+fn verify_signature(signature: &EvidenceSignature) -> Result<(), String> {
+  if signature.algorithm != "Ed25519" { return Err("Algoritmo de assinatura não suportado.".to_string()); }
+  let public_key: [u8; 32] = BASE64.decode(&signature.public_key).map_err(|error| error.to_string())?.try_into().map_err(|_| "Chave pública de assinatura inválida.".to_string())?;
+  let signature_bytes: [u8; 64] = BASE64.decode(&signature.signature).map_err(|error| error.to_string())?.try_into().map_err(|_| "Assinatura de evidência inválida.".to_string())?;
+  VerifyingKey::from_bytes(&public_key).map_err(|error| error.to_string())?.verify(&evidence_payload(&signature.evidence_ref, &signature.sha256), &Signature::from_bytes(&signature_bytes)).map_err(|_| "A assinatura não confere com o pacote de evidência.".to_string())
 }
 
 fn make_profile_id(name: &str) -> String {
@@ -165,16 +263,18 @@ fn delete_onvif_profile(app: tauri::AppHandle, id: String) -> Result<(), String>
 }
 
 #[tauri::command]
-fn probe_rtsp(endpoint: String) -> Result<RtspProbe, String> {
+fn probe_rtsp(app: tauri::AppHandle, endpoint: String) -> Result<RtspProbe, String> {
   let url = valid_rtsp_url(&endpoint)?;
   let host = url.host_str().expect("URL validada sem host").to_string();
   let port = url.port_or_known_default().unwrap_or(554);
   let address: SocketAddr = format!("{host}:{port}").to_socket_addrs().map_err(|error| error.to_string())?.next().ok_or("Não foi possível resolver o host RTSP.")?;
   let started = Instant::now();
-  match TcpStream::connect_timeout(&address, Duration::from_secs(3)) {
-    Ok(_) => Ok(RtspProbe { endpoint, host, port, connected: true, latency_millis: started.elapsed().as_millis(), error: None }),
-    Err(error) => Ok(RtspProbe { endpoint, host, port, connected: false, latency_millis: started.elapsed().as_millis(), error: Some(error.to_string()) }),
-  }
+  let result = match TcpStream::connect_timeout(&address, Duration::from_secs(3)) {
+    Ok(_) => RtspProbe { endpoint, host, port, connected: true, latency_millis: started.elapsed().as_millis(), error: None },
+    Err(error) => RtspProbe { endpoint, host, port, connected: false, latency_millis: started.elapsed().as_millis(), error: Some(error.to_string()) },
+  };
+  let _ = record_technical_telemetry(&app, "rtsp_probe", result.connected, result.latency_millis);
+  Ok(result)
 }
 
 #[tauri::command]
@@ -202,6 +302,7 @@ fn stop_rtsp_capture(registry: tauri::State<CaptureRegistry>, session_id: String
 fn analyze_snapshot(app: tauri::AppHandle, request: serde_json::Value) -> Result<serde_json::Value, String> {
   let script = worker_path(&app);
   if !script.is_file() { return Err("Worker local de visão não encontrado. Empacote-o como sidecar na distribuição final.".to_string()); }
+  let started = Instant::now();
   let interpreter = if cfg!(target_os = "windows") { "python" } else { "python3" };
   let mut child = Command::new(interpreter).arg(script).stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().map_err(|error| format!("Worker local não iniciou: {error}"))?;
   let payload = serde_json::to_string(&request).map_err(|error| error.to_string())?;
@@ -209,7 +310,32 @@ fn analyze_snapshot(app: tauri::AppHandle, request: serde_json::Value) -> Result
   let output = child.wait_with_output().map_err(|error| error.to_string())?;
   if !output.status.success() { return Err(format!("Worker local encerrou com status {}.", output.status)); }
   let line = String::from_utf8(output.stdout).map_err(|error| error.to_string())?.lines().next().ok_or("Worker não retornou resultado.")?.to_string();
-  serde_json::from_str(&line).map_err(|error| format!("Resposta inválida do worker: {error}"))
+  let result = serde_json::from_str(&line).map_err(|error| format!("Resposta inválida do worker: {error}"))?;
+  let _ = record_technical_telemetry(&app, "analysis_snapshot", true, started.elapsed().as_millis());
+  Ok(result)
+}
+
+#[tauri::command]
+fn sign_evidence_package(path: String) -> Result<EvidenceSignature, String> {
+  let evidence_path = PathBuf::from(&path);
+  if !evidence_path.is_file() { return Err("Selecione um arquivo de evidência local existente para assinar.".to_string()); }
+  let evidence_ref = evidence_path.file_name().and_then(|value| value.to_str()).ok_or("Nome de evidência inválido.")?.to_string();
+  let sha256 = sha256_file(&evidence_path)?;
+  let signing_key = evidence_signing_key()?;
+  let signature = signing_key.sign(&evidence_payload(&evidence_ref, &sha256));
+  let signature_path = evidence_path.with_extension(format!("{}.spacevision-signature.json", evidence_path.extension().and_then(|value| value.to_str()).unwrap_or("evidence")));
+  let result = EvidenceSignature { evidence_ref, sha256, signature: BASE64.encode(signature.to_bytes()), public_key: BASE64.encode(signing_key.verifying_key().to_bytes()), algorithm: "Ed25519".to_string(), signed_at: Utc::now().to_rfc3339(), signature_ref: signature_path.to_string_lossy().to_string() };
+  verify_signature(&result)?;
+  fs::write(&signature_path, serde_json::to_vec_pretty(&result).map_err(|error| error.to_string())?).map_err(|error| format!("Não foi possível gravar o manifesto de assinatura: {error}"))?;
+  Ok(result)
+}
+
+#[tauri::command]
+fn verify_evidence_package(path: String, signature_ref: String) -> Result<bool, String> {
+  let evidence_path = PathBuf::from(path);
+  let signature: EvidenceSignature = serde_json::from_slice(&fs::read(signature_ref).map_err(|error| format!("Manifesto de assinatura não disponível: {error}"))?).map_err(|error| format!("Manifesto de assinatura inválido: {error}"))?;
+  if sha256_file(&evidence_path)? != signature.sha256 { return Ok(false); }
+  Ok(verify_signature(&signature).is_ok())
 }
 
 #[tauri::command]
@@ -240,8 +366,27 @@ fn save_biometric_controls(app: tauri::AppHandle, controls: BiometricControls) -
   Ok(controls)
 }
 
+#[tauri::command]
+fn get_telemetry_summary(app: tauri::AppHandle) -> Result<TelemetrySummary, String> {
+  let settings = read_telemetry_settings(&app)?;
+  let events = read_telemetry_events(&app)?;
+  let probes = events.iter().filter(|event| event.operation == "rtsp_probe").collect::<Vec<_>>();
+  let successful_rtsp_probes = probes.iter().filter(|event| event.success).count();
+  let failed_rtsp_probes = probes.len() - successful_rtsp_probes;
+  let average_probe_latency_millis = if probes.is_empty() { 0 } else { probes.iter().map(|event| event.latency_millis).sum::<u128>() / probes.len() as u128 };
+  Ok(TelemetrySummary { enabled: settings.enabled, retention_hours: settings.retention_hours, event_count: events.len(), successful_rtsp_probes, failed_rtsp_probes, average_probe_latency_millis })
+}
+
+#[tauri::command]
+fn save_telemetry_settings(app: tauri::AppHandle, settings: TelemetrySettings) -> Result<TelemetrySummary, String> {
+  if settings.retention_hours == 0 || settings.retention_hours > 720 { return Err("A retenção de telemetria deve ficar entre 1 e 720 horas.".to_string()); }
+  fs::write(telemetry_settings_path(&app)?, serde_json::to_vec_pretty(&settings).map_err(|error| error.to_string())?).map_err(|error| error.to_string())?;
+  if !settings.enabled { let _ = fs::remove_file(telemetry_events_path(&app)?); }
+  get_telemetry_summary(app)
+}
+
 pub fn run() {
-  tauri::Builder::default().manage(CaptureRegistry::default()).invoke_handler(tauri::generate_handler![discover_onvif_devices, list_onvif_profiles, save_onvif_profile, delete_onvif_profile, probe_rtsp, start_rtsp_capture, stop_rtsp_capture, analyze_snapshot, analysis_capabilities, save_biometric_controls]).run(tauri::generate_context!()).expect("erro ao iniciar SpaceVision Desktop");
+  tauri::Builder::default().manage(CaptureRegistry::default()).invoke_handler(tauri::generate_handler![discover_onvif_devices, list_onvif_profiles, save_onvif_profile, delete_onvif_profile, probe_rtsp, start_rtsp_capture, stop_rtsp_capture, analyze_snapshot, sign_evidence_package, verify_evidence_package, analysis_capabilities, save_biometric_controls, get_telemetry_summary, save_telemetry_settings]).run(tauri::generate_context!()).expect("erro ao iniciar SpaceVision Desktop");
 }
 
 #[cfg(test)]
@@ -281,4 +426,17 @@ mod tests {
     assert!(valid_rtsp_url("rtsp://camera.local/stream").is_ok());
     assert!(valid_rtsp_url("https://camera.local/stream").is_err());
   }
+
+  #[test]
+  fn valida_assinatura_ed25519_e_rejeita_manifesto_adulterado() {
+    let signing_key = SigningKey::from_bytes(&[7u8; 32]);
+    let evidence_ref = "segment_00001.mp4";
+    let sha256 = "a".repeat(64);
+    let signed = signing_key.sign(&evidence_payload(evidence_ref, &sha256));
+    let signature = EvidenceSignature { evidence_ref: evidence_ref.to_string(), sha256, signature: BASE64.encode(signed.to_bytes()), public_key: BASE64.encode(signing_key.verifying_key().to_bytes()), algorithm: "Ed25519".to_string(), signed_at: "2026-08-13T00:00:00Z".to_string(), signature_ref: "signature.json".to_string() };
+    assert!(verify_signature(&signature).is_ok());
+    let altered = EvidenceSignature { sha256: "b".repeat(64), ..signature };
+    assert!(verify_signature(&altered).is_err());
+  }
+
 }

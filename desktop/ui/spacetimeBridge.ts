@@ -11,6 +11,7 @@ export type DesktopSyncState = {
   cameras: Array<{ id: number; installationId: number; name: string }>;
   cameraHealth: Array<{ cameraId: number; consecutiveFailures: number; maintenanceNote: string; maintenanceStatus: string; maintenanceDueAt?: number }>;
   evidenceRecords: number;
+  evidences: Array<{ id: number; evidenceRef: string; sha256: string; exportedAt?: number; signedExportRef?: string; signatureAlgorithm?: string }>;
   role: UserRole;
   actorName?: string;
   reason?: string;
@@ -29,6 +30,7 @@ function countRows(connection: any) {
   const installations = (Array.from(connection.db.installations.iter()) as any[]).map((installation) => ({ id: asNumber(installation.id), name: installation.name, location: installation.location, timezone: installation.timezone, status: installation.status }));
   const cameras = (Array.from(connection.db.cameras.iter()) as any[]).map((camera) => ({ id: asNumber(camera.id), installationId: asNumber(camera.installationId), name: camera.name }));
   const cameraHealth = (Array.from(connection.db.cameraHealth.iter()) as any[]).map((health) => ({ cameraId: asNumber(health.cameraId), consecutiveFailures: asNumber(health.consecutiveFailures), maintenanceNote: health.maintenanceNote, maintenanceStatus: health.maintenanceStatus, maintenanceDueAt: health.maintenanceDueAt ? asNumber(health.maintenanceDueAt) : undefined }));
+  const evidences = (Array.from(connection.db.evidenceRecords.iter()) as any[]).map((evidence) => ({ id: asNumber(evidence.id), evidenceRef: evidence.evidenceRef, sha256: evidence.sha256, exportedAt: evidence.exportedAt ? asNumber(evidence.exportedAt) : undefined, signedExportRef: evidence.signedExportRef ?? undefined, signatureAlgorithm: evidence.signatureAlgorithm ?? undefined }));
   const queue = analysis.filter((event) => event.reviewRequired && !event.reviewed).map((event) => ({ id: asNumber(event.id), cameraId: asNumber(event.cameraId), task: event.task, classification: event.classification, confidence: event.confidence, biometric: event.biometric }));
   return {
     connected: true,
@@ -39,7 +41,8 @@ function countRows(connection: any) {
     installations,
     cameras,
     cameraHealth,
-    evidenceRecords: Array.from(connection.db.evidenceRecords.iter()).length,
+    evidenceRecords: evidences.length,
+    evidences,
     role,
     actorName: actor?.displayName,
   } satisfies DesktopSyncState;
@@ -77,8 +80,8 @@ export function startDesktopSpacetimeBridge(onState: (state: DesktopSyncState) =
       active.db.biometricControls.onInsert(refresh);
       active.db.biometricControls.onUpdate(refresh);
     })
-    .onDisconnect(() => onState({ connected: false, analysisEvents: 0, pendingReviews: 0, auditRecords: 0, queue: [], installations: [], cameras: [], cameraHealth: [], evidenceRecords: 0, role: "viewer", reason: "sincronização interrompida" }))
-    .onConnectError((error) => onState({ connected: false, analysisEvents: 0, pendingReviews: 0, auditRecords: 0, queue: [], installations: [], cameras: [], cameraHealth: [], evidenceRecords: 0, role: "viewer", reason: String(error) }))
+    .onDisconnect(() => onState({ connected: false, analysisEvents: 0, pendingReviews: 0, auditRecords: 0, queue: [], installations: [], cameras: [], cameraHealth: [], evidenceRecords: 0, evidences: [], role: "viewer", reason: "sincronização interrompida" }))
+    .onConnectError((error) => onState({ connected: false, analysisEvents: 0, pendingReviews: 0, auditRecords: 0, queue: [], installations: [], cameras: [], cameraHealth: [], evidenceRecords: 0, evidences: [], role: "viewer", reason: String(error) }))
     .build();
   return () => activeConnection?.disconnect();
 }
@@ -101,7 +104,17 @@ export async function submitAnalysisResult(cameraId: number, response: any, imag
   }
 }
 
-export async function reportCameraHealth(cameraId: number, success: boolean, maintenanceNote: string, maintenanceStatus = "none") {
+export async function upsertDesktopInstallation(input: { id?: number; name: string; location: string; timezone: string; status: string }) {
   if (!activeConnection) throw new Error("SpacetimeDB não está conectado.");
-  await activeConnection.reducers.reportCameraHealth({ cameraId, success, maintenanceNote, maintenanceStatus, maintenanceDueAt: undefined });
+  await activeConnection.reducers.upsertInstallation({ id: input.id ?? 0, ...input });
+}
+
+export async function markEvidenceExported(id: number, signedExportRef: string, signatureAlgorithm: string) {
+  if (!activeConnection) throw new Error("SpacetimeDB não está conectado.");
+  await activeConnection.reducers.markEvidenceExported({ id, signedExportRef, signatureAlgorithm });
+}
+
+export async function reportCameraHealth(cameraId: number, success: boolean, maintenanceNote: string, maintenanceStatus = "none", maintenanceDueAt?: number) {
+  if (!activeConnection) throw new Error("SpacetimeDB não está conectado.");
+  await activeConnection.reducers.reportCameraHealth({ cameraId, success, maintenanceNote, maintenanceStatus, maintenanceDueAt });
 }

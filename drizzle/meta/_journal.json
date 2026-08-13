@@ -8,6 +8,13 @@
       "when": 1786502847303,
       "tag": "0000_minor_professor_monster",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1786588536187,
+      "tag": "0001_talented_millenium_guard",
+      "breakpoints": true
     }
   ]
 }

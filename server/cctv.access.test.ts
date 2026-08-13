@@ -37,6 +37,7 @@ describe("controle de acesso e filtros do CCTV", () => {
     const commands: CctvCommands = {
       upsertInstallation: vi.fn().mockResolvedValue(undefined),
       upsertCamera: vi.fn().mockResolvedValue(undefined),
+      reportCameraHealth: vi.fn().mockResolvedValue(undefined),
       setRetention: vi.fn().mockResolvedValue(undefined),
       acknowledgeEvent: vi.fn().mockResolvedValue(undefined),
       setCameraStatus: vi.fn().mockResolvedValue(undefined),
@@ -70,8 +71,9 @@ describe("controle de acesso e filtros do CCTV", () => {
     const camera = store.getSnapshot().cameras.find((item) => item.name === "Portão norte");
     expect(camera).toMatchObject({ installationId: installation!.id, tags: "perímetro,veículos" });
     expect(store.getSnapshot().cameraHealth.find((item) => item.cameraId === camera!.id)).toMatchObject({ consecutiveFailures: 0, maintenanceStatus: "none" });
-    await store.reportCameraHealth(camera!.id, false, "Inspeção programada", "scheduled");
-    expect(store.getSnapshot().cameraHealth.find((item) => item.cameraId === camera!.id)).toMatchObject({ consecutiveFailures: 1, maintenanceStatus: "scheduled", maintenanceNote: "Inspeção programada" });
+    const maintenanceDueAt = new Date("2026-09-01T12:00:00Z").getTime();
+    await store.reportCameraHealth(camera!.id, false, "Inspeção programada", "scheduled", maintenanceDueAt);
+    expect(store.getSnapshot().cameraHealth.find((item) => item.cameraId === camera!.id)).toMatchObject({ consecutiveFailures: 1, maintenanceStatus: "scheduled", maintenanceNote: "Inspeção programada", maintenanceDueAt });
     store.dispose();
   });
 
