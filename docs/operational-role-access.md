@@ -28,3 +28,17 @@ O **SpaceVision DVR** aplica a autorização em duas camadas. A interface usa ca
 ## Validação executável
 
 O comando `pnpm spacetime:validate-analysis`, executado em uma instância local isolada, cria identidades independentes para administrador, operador e auditor. Ele comprova que um operador consegue registrar e reconhecer um evento, que essas duas ações produzem `audit_logs` e que um auditor é bloqueado ao tentar reconhecer o mesmo evento. A cobertura unitária em `server/cctv.access.test.ts` verifica também as capacidades de interface e os comandos protegidos.
+
+## Evidência visual e bloqueios confirmados
+
+Em 13 de agosto de 2026, a mesma conta de validação foi alternada de forma reversível entre `admin`, `operator`, `auditor`, `technician` e `viewer`. A página raiz foi renderizada após cada mudança e a conta foi restaurada para `admin` ao término. As capturas confirmaram que apenas o administrador recebe as entradas **Câmeras** e **Configurações**; `operator` e `auditor` permanecem com **Relatórios**; `technician` e `viewer` ficam limitados a **Monitoramento** e **Eventos**.
+
+| Papel | Navegação web observada | Ação restrita confirmada por teste | Resultado esperado |
+|---|---|---|---|
+| `admin` | Monitoramento, eventos, câmeras, configurações e relatórios | Criar/editar câmera | Permitida por `upsertCamera`. |
+| `operator` | Monitoramento, eventos e relatórios | Alterar retenção | Recusada pelo guard de capacidade. |
+| `auditor` | Monitoramento, eventos e relatórios | Registrar saúde/manutenção | Recusada pelo guard de capacidade. |
+| `technician` | Monitoramento e eventos | Reconhecer evento | Recusada pelo guard de capacidade. |
+| `viewer` | Monitoramento e eventos | Criar/editar câmera | Recusada pelo guard de capacidade. |
+
+O comando `pnpm test` executado nessa validação aprovou **11 testes**, incluindo o contrato que combina os bloqueios acima. A evidência visual comprova a ausência das áreas de navegação incompatíveis; a prova de tentativa de ação utiliza os guards de comando e os reducers reativos, evitando depender exclusivamente de ocultação de interface.
