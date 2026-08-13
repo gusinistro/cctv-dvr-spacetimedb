@@ -52,6 +52,7 @@
 - [x] Criar testes ponta a ponta para reducers com papéis operacionais, permissões permitidas ou negadas e geração de `audit_logs`.
 - [x] Documentar e validar visualmente as telas e ações disponíveis para cada papel operacional.
 - [ ] Validar visualmente a matriz de navegação e ações bloqueadas no painel web para `admin`, `operator`, `auditor`, `technician` e `viewer`.
+- [x] Registrar a limitação da validação interativa dos papéis autenticados, pulada pelo usuário nesta rodada.
 - [x] Alinhar as identidades autenticadas do painel web aos cinco papéis operacionais para permitir validação visual completa.
 - [ ] Validar a interface desktop com identidades de papéis distintos para revisão de análise e governança biométrica.
 - [x] Atualizar a documentação operacional com evidências verificáveis da validação visual por papel e suas limitações.
