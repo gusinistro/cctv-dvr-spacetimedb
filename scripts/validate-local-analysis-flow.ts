@@ -1,4 +1,6 @@
 import { DbConnection, tables } from "../client/src/lib/spacetimedb-bindings";
+import { resolveDesktopRole } from "../desktop/ui/spacetimeBridge";
+import { can } from "../client/src/lib/cctv/access";
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -92,17 +94,29 @@ async function main() {
     await new Promise((resolve) => setTimeout(resolve, 80));
     await connection.reducers.setActorRole({ identity: operatorSession.identity, role: "operator" });
     await applySubscription(operatorSession.connection);
+    const operatorDesktopRole = resolveDesktopRole(operatorSession.connection.db.actors.iter(), String(operatorSession.identity));
+    if (operatorDesktopRole !== "operator" || !can(operatorDesktopRole, "review_analysis") || can(operatorDesktopRole, "manage_biometrics")) throw new Error("O bridge desktop não refletiu corretamente as capacidades do operador reativo.");
     await operatorSession.connection.reducers.logSystemEvent({ cameraId: Number(camera.id), type: "health", severity: "warning", message: "Teste de evento operacional" });
     await new Promise((resolve) => setTimeout(resolve, 80));
     const operationalEvent = Array.from(operatorSession.connection.db.events.iter()).find((entry: any) => entry.message === "Teste de evento operacional") as any;
     if (!operationalEvent) throw new Error("O operador não conseguiu registrar o evento autorizado.");
     await operatorSession.connection.reducers.acknowledgeEvent({ id: Number(operationalEvent.id) });
+    await connection.reducers.logAnalysisEvent({ cameraId: Number(camera.id), task: "objects", classification: "pessoa para revisão por operador", confidence: "0.91", evidenceRef: "desktop-role-validation", reviewRequired: true });
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    const desktopReviewEvent = Array.from(operatorSession.connection.db.analysisEvents.iter()).find((entry: any) => entry.classification === "pessoa para revisão por operador") as any;
+    if (!desktopReviewEvent || desktopReviewEvent.reviewed) throw new Error("A fila reativa não entregou ao operador o evento de revisão desktop.");
+    await operatorSession.connection.reducers.reviewAnalysisEvent({ id: Number(desktopReviewEvent.id), decision: "approved" });
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    const operatorReviewedDesktopEvent = Array.from(connection.db.analysisEvents.iter()).find((entry: any) => Number(entry.id) === Number(desktopReviewEvent.id)) as any;
+    if (!operatorReviewedDesktopEvent?.reviewed) throw new Error("O operador não conseguiu concluir a revisão reativa exibida pelo desktop.");
 
     auditorSession = await connect();
     await auditorSession.connection.reducers.registerViewer({ displayName: "Auditor de validação" });
     await new Promise((resolve) => setTimeout(resolve, 80));
     await connection.reducers.setActorRole({ identity: auditorSession.identity, role: "auditor" });
     await applySubscription(auditorSession.connection);
+    const auditorDesktopRole = resolveDesktopRole(auditorSession.connection.db.actors.iter(), String(auditorSession.identity));
+    if (auditorDesktopRole !== "auditor" || can(auditorDesktopRole, "review_analysis") || can(auditorDesktopRole, "manage_biometrics")) throw new Error("O bridge desktop não refletiu corretamente as capacidades do auditor reativo.");
     let auditorBlocked = false;
     try {
       await auditorSession.connection.reducers.acknowledgeEvent({ id: Number(operationalEvent.id) });
@@ -120,6 +134,8 @@ async function main() {
     await new Promise((resolve) => setTimeout(resolve, 80));
     await connection.reducers.setActorRole({ identity: technicianSession.identity, role: "technician" });
     await applySubscription(technicianSession.connection);
+    const technicianDesktopRole = resolveDesktopRole(technicianSession.connection.db.actors.iter(), String(technicianSession.identity));
+    if (technicianDesktopRole !== "technician" || can(technicianDesktopRole, "review_analysis") || can(technicianDesktopRole, "manage_biometrics")) throw new Error("O bridge desktop não refletiu corretamente as capacidades do técnico reativo.");
     await technicianSession.connection.reducers.reportCameraHealth({ cameraId: Number(camera.id), success: false, maintenanceNote: "Inspeção preventiva solicitada", maintenanceStatus: "scheduled", maintenanceDueAt: undefined });
     await new Promise((resolve) => setTimeout(resolve, 80));
     const health = Array.from(technicianSession.connection.db.cameraHealth.iter()).find((entry: any) => Number(entry.cameraId) === Number(camera.id)) as any;
@@ -135,6 +151,8 @@ async function main() {
     viewerSession = await connect();
     await viewerSession.connection.reducers.registerViewer({ displayName: "Visualizador de validação" });
     await applySubscription(viewerSession.connection);
+    const viewerDesktopRole = resolveDesktopRole(viewerSession.connection.db.actors.iter(), String(viewerSession.identity));
+    if (viewerDesktopRole !== "viewer" || can(viewerDesktopRole, "review_analysis") || can(viewerDesktopRole, "manage_biometrics")) throw new Error("O bridge desktop não refletiu corretamente as capacidades do visualizador reativo.");
     let viewerBlocked = false;
     try {
       await viewerSession.connection.reducers.logSystemEvent({ cameraId: Number(camera.id), type: "health", severity: "warning", message: "Ação proibida ao visualizador" });
@@ -142,6 +160,20 @@ async function main() {
       viewerBlocked = true;
     }
     if (!viewerBlocked) throw new Error("O visualizador não foi bloqueado ao tentar registrar um evento.");
+    let viewerReviewBlocked = false;
+    try {
+      await viewerSession.connection.reducers.reviewAnalysisEvent({ id: Number(desktopReviewEvent.id), decision: "rejected" });
+    } catch {
+      viewerReviewBlocked = true;
+    }
+    if (!viewerReviewBlocked) throw new Error("O visualizador não foi bloqueado ao tentar revisar a análise desktop.");
+    let operatorBiometricBlocked = false;
+    try {
+      await operatorSession.connection.reducers.setBiometricControls({ faceRecognitionEnabled: true, emotionalSignalEnabled: false, consentRecorded: true, humanReviewRequired: true, retentionDays: 7 });
+    } catch {
+      operatorBiometricBlocked = true;
+    }
+    if (!operatorBiometricBlocked) throw new Error("O operador não foi bloqueado na governança biométrica reativa.");
 
     await connection.reducers.setRetentionPolicy({ cameraId: Number(camera.id), retentionDays: 0, quality: "1080p", recordingMode: "motion" });
     await new Promise((resolve) => setTimeout(resolve, 80));
@@ -153,7 +185,7 @@ async function main() {
     if (!auditActions.includes("system_event_logged") || !auditActions.includes("event_acknowledged")) throw new Error("As ações autorizadas do operador não geraram a trilha de auditoria esperada.");
     const allAuditActions = (Array.from(connection.db.auditLogs.iter()) as any[]).map((entry) => entry.action);
     for (const expectedAction of ["evidence_hashed", "evidence_exported", "camera_health_reported", "retention_enforced"]) if (!allAuditActions.includes(expectedAction)) throw new Error(`Ação auditável ausente: ${expectedAction}`);
-    console.log(JSON.stringify({ ok: true, removedAnalysisEventId: Number(reviewed.id), removedEvidenceId: Number(evidence.id), auditCount: Array.from(connection.db.auditLogs.iter()).length, cameraId: Number(camera.id), classification: reviewed.classification, operatorAuditActions: auditActions, auditorBlocked, technicianBlocked, viewerBlocked, technicianHealthFailureCount: Number(health.consecutiveFailures), retentionDeletionVerified: true, signedEvidenceChainVerified: true, signatureAlgorithm: signedFixture.algorithm }));
+    console.log(JSON.stringify({ ok: true, removedAnalysisEventId: Number(reviewed.id), removedEvidenceId: Number(evidence.id), auditCount: Array.from(connection.db.auditLogs.iter()).length, cameraId: Number(camera.id), classification: reviewed.classification, operatorAuditActions: auditActions, auditorBlocked, technicianBlocked, viewerBlocked, viewerReviewBlocked, operatorBiometricBlocked, desktopIdentityRoles: { operator: operatorDesktopRole, auditor: auditorDesktopRole, technician: technicianDesktopRole, viewer: viewerDesktopRole }, desktopReviewApprovedByOperator: true, technicianHealthFailureCount: Number(health.consecutiveFailures), retentionDeletionVerified: true, signedEvidenceChainVerified: true, signatureAlgorithm: signedFixture.algorithm }));
   } finally {
     operatorSession?.connection.disconnect();
     auditorSession?.connection.disconnect();

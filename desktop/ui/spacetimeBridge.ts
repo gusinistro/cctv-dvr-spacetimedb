@@ -23,10 +23,15 @@ function asNumber(value: unknown) { return typeof value === "bigint" ? Number(va
 let activeConnection: any;
 let activeIdentity = "";
 
+export function resolveDesktopRole(actors: Iterable<any>, identity: string): UserRole {
+  const actor = Array.from(actors).find((entry) => String(entry.identity) === identity);
+  return ["admin", "operator", "auditor", "technician", "viewer"].includes(actor?.role) ? actor.role : "viewer";
+}
+
 function countRows(connection: any) {
   const analysis = Array.from(connection.db.analysisEvents.iter()) as any[];
   const actor = (Array.from(connection.db.actors.iter()) as any[]).find((entry) => String(entry.identity) === activeIdentity);
-  const role: UserRole = ["admin", "operator", "auditor", "technician", "viewer"].includes(actor?.role) ? actor.role : "viewer";
+  const role = resolveDesktopRole(connection.db.actors.iter(), activeIdentity);
   const installations = (Array.from(connection.db.installations.iter()) as any[]).map((installation) => ({ id: asNumber(installation.id), name: installation.name, location: installation.location, timezone: installation.timezone, status: installation.status }));
   const cameras = (Array.from(connection.db.cameras.iter()) as any[]).map((camera) => ({ id: asNumber(camera.id), installationId: asNumber(camera.installationId), name: camera.name }));
   const cameraHealth = (Array.from(connection.db.cameraHealth.iter()) as any[]).map((health) => ({ cameraId: asNumber(health.cameraId), consecutiveFailures: asNumber(health.consecutiveFailures), maintenanceNote: health.maintenanceNote, maintenanceStatus: health.maintenanceStatus, maintenanceDueAt: health.maintenanceDueAt ? asNumber(health.maintenanceDueAt) : undefined }));

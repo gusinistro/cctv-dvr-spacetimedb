@@ -55,9 +55,12 @@
 - [x] Registrar a limitação da validação interativa dos papéis autenticados, pulada pelo usuário nesta rodada.
 - [x] Adicionar seleção de papel exclusiva para desenvolvimento, sem efeito em builds de produção, para validação visual reproduzível.
 - [x] Adicionar prévia de papel exclusiva para desenvolvimento ao desktop, sem alterar a identidade reativa nem permissões de produção.
+- [x] Adicionar fixture de fila de revisão exclusiva para desenvolvimento para validar os controles desktop por papel sem dados operacionais.
 - [x] Corrigir a renderização do painel de telemetria na governança desktop e retestar a prévia visual.
 - [x] Alinhar as identidades autenticadas do painel web aos cinco papéis operacionais para permitir validação visual completa.
-- [ ] Validar a interface desktop com identidades de papéis distintos para revisão de análise e governança biométrica.
+- [x] Validar a interface desktop com identidades de papéis distintos para revisão de análise e governança biométrica.
+- [x] Corrigir a fixture de revisão desktop para remover ou atualizar o item após uma decisão local, preservando uma fila consistente sem mutações operacionais.
+- [x] Executar uma validação desktop automatizada com identidades reativas reais por papel para revisão analítica e governança biométrica, registrando a evidência observável.
 - [x] Atualizar a documentação operacional com evidências verificáveis da validação visual por papel e suas limitações.
 - [x] Implementar e documentar enforcement adicional de retenção e privacidade para eventos analíticos, evidências e exportações.
 - [x] Implementar cadeia de evidências com integridade de clipes, exportação assinada e contexto de eventos revisáveis.
@@ -85,5 +88,7 @@
 - [x] Avaliar e corrigir vulnerabilidades transitivas de produção com atualização compatível, validação integral e registro de impacto.
 - [x] Corrigir a regressão `pathRegexp is not a function` introduzida pela atualização de segurança e revalidar o servidor de desenvolvimento.
 - [x] Validar ações web por papel com identidade reativa isolada e registrar os resultados permitidos e bloqueados.
-- [ ] Sincronizar no GitHub a prova reativa isolada e a matriz web final documentada por papel.
+- [x] Sincronizar no GitHub a prova reativa isolada e a matriz web final documentada por papel.
 - [ ] Validar o produto ampliado e publicar a evolução profissional no GitHub.
+- [ ] Sincronizar no clone publicado do GitHub as mudanças finais de validação desktop, documentação operacional, scripts e `todo.md`, com commit e push verificáveis.
+- [ ] Registrar no repositório publicado a validação final executada, incluindo `desktop:validate-roles` e a base isolada utilizada.
