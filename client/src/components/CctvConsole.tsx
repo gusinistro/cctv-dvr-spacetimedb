@@ -105,7 +105,9 @@ function EventMark({ event }: { event: SystemEvent }) {
 
 export default function CctvConsole() {
   const { user, isAuthenticated, loading } = useAuth();
-  const requestedRole = String(user?.role ?? "viewer");
+  const developmentRole = import.meta.env.DEV ? new URLSearchParams(window.location.search).get("role") : null;
+  const hasDevelopmentRole = developmentRole !== null && ["admin", "operator", "auditor", "technician", "viewer"].includes(developmentRole);
+  const requestedRole = hasDevelopmentRole ? developmentRole : String(user?.role ?? "viewer");
   const role: UserRole = ["admin", "operator", "auditor", "technician", "viewer"].includes(requestedRole) ? requestedRole as UserRole : "viewer";
   const canManageCameras = can(role, "manage_cameras");
   const canManageRetention = can(role, "manage_retention");
@@ -169,7 +171,7 @@ export default function CctvConsole() {
         </nav>
         <div className="sidebar-bottom">
           <div className="realtime-state"><span className={snapshot.connected ? "status-pip online" : "status-pip warn"} />{snapshot.source === "spacetimedb" ? "Sincronização SpacetimeDB" : "Simulador local reativo"}</div>
-          <div className="profile-tile"><div className="profile-avatar">{(user?.name ?? "V").slice(0, 1).toUpperCase()}</div><div><strong>{user?.name ?? "Visitante"}</strong><small>{role}</small></div>{!isAuthenticated && <button type="button" onClick={() => startLogin()} title="Entrar"><ShieldCheck size={16} /></button>}</div>
+          <div className="profile-tile"><div className="profile-avatar">{(user?.name ?? "V").slice(0, 1).toUpperCase()}</div><div><strong>{hasDevelopmentRole ? "Validação local" : user?.name ?? "Visitante"}</strong><small>{hasDevelopmentRole ? `desenvolvimento · ${role}` : role}</small></div>{!isAuthenticated && <button type="button" onClick={() => startLogin()} title="Entrar"><ShieldCheck size={16} /></button>}</div>
         </div>
       </aside>
 

@@ -41,6 +41,9 @@ export default function DesktopApp() {
   const [evidencePath, setEvidencePath] = useState("");
   const [signatureResult, setSignatureResult] = useState<EvidenceSignature | null>(null);
   const [telemetry, setTelemetry] = useState<TelemetrySummary>({ enabled: false, retentionHours: 24, eventCount: 0, successfulRtspProbes: 0, failedRtspProbes: 0, averageProbeLatencyMillis: 0 });
+  const developmentRole = import.meta.env.DEV ? new URLSearchParams(window.location.search).get("role") : null;
+  const hasDevelopmentRole = developmentRole !== null && ["admin", "operator", "auditor", "technician", "viewer"].includes(developmentRole);
+  const displayedRole = hasDevelopmentRole ? developmentRole : sync.role;
 
   useEffect(() => { void invoke<Capability[]>("analysis_capabilities").then(setCapabilities).catch(() => setNotice("O catálogo de análise local não está disponível.")); }, []);
   useEffect(() => { void invoke<OnvifProfile[]>("list_onvif_profiles").then(setProfiles).catch(() => setNotice("Não foi possível abrir o cofre de perfis ONVIF.")); }, []);
@@ -65,11 +68,11 @@ export default function DesktopApp() {
     return () => window.removeEventListener("keydown", handleShortcut);
   }, []);
   const protectedCount = useMemo(() => capabilities.filter((capability) => capability.requiresConsent).length, [capabilities]);
-  const canReview = can(sync.role, "review_analysis");
-  const canManageBiometrics = can(sync.role, "manage_biometrics");
-  const canRunDiagnostics = can(sync.role, "diagnostics");
-  const canManageInstallations = can(sync.role, "manage_cameras");
-  const canExportEvidence = can(sync.role, "export");
+  const canReview = can(displayedRole, "review_analysis");
+  const canManageBiometrics = can(displayedRole, "manage_biometrics");
+  const canRunDiagnostics = can(displayedRole, "diagnostics");
+  const canManageInstallations = can(displayedRole, "manage_cameras");
+  const canExportEvidence = can(displayedRole, "export");
 
   async function discover() {
     setNotice("Enviando WS-Discovery ONVIF na rede local...");
@@ -191,7 +194,7 @@ export default function DesktopApp() {
       <p className="edge-state"><i /> Nó local protegido</p>
       {([ ["monitor", "Operação"], ["cameras", "Câmeras"], ["analysis", "Análise"], ["governance", "Governança"] ] as [Tab, string][]).map(([key, label], index) => <button className={tab === key ? "nav active" : "nav"} key={key} onClick={() => setTab(key)} aria-current={tab === key ? "page" : undefined} title={`Ctrl/Cmd+${index + 1}`}>{label}</button>)}
       <p className="shortcut-help">Atalhos: Ctrl/Cmd + 1–4 alternam as áreas quando nenhum formulário está em foco.</p>
-      <footer><span>{sync.connected ? `SpacetimeDB · ${sync.role}` : "SpacetimeDB local"}</span><small>{sync.connected ? `${sync.actorName ?? "Sessão"} · ${sync.pendingReviews} revisão(ões)` : sync.reason}</small></footer>
+      <footer><span>{hasDevelopmentRole ? `Prévia local · ${displayedRole}` : sync.connected ? `SpacetimeDB · ${sync.role}` : "SpacetimeDB local"}</span><small>{hasDevelopmentRole ? "Interface de desenvolvimento; a identidade reativa permanece inalterada." : sync.connected ? `${sync.actorName ?? "Sessão"} · ${sync.pendingReviews} revisão(ões)` : sync.reason}</small></footer>
     </aside>
     <section className="desktop-main">
       <header><div><p>OPERAÇÃO LOCAL</p><h1>{tab === "monitor" ? "Central de borda" : tab === "cameras" ? "Descoberta e conectividade" : tab === "analysis" ? "Análise de vídeo" : "Controles sensíveis"}</h1></div><div className="status-chip">● {sync.connected ? "SpacetimeDB reativo" : "processamento local"}</div></header>
