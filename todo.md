@@ -71,6 +71,7 @@
 - [ ] Alinhar os manifestos web e desktop ao número da primeira release de produção validada.
 - [ ] Corrigir o contexto Git ausente na etapa de publicação das notas geradas e executar novamente a release v1.0.5.
 - [ ] Corrigir a seleção de artefatos para enviar apenas arquivos de pacote à release gerada.
+- [ ] Tornar o empacotamento Windows tolerante a falhas transitórias de download do NSIS e repetir a release.
 - [x] Avaliar e corrigir vulnerabilidades transitivas de produção com atualização compatível, validação integral e registro de impacto.
 - [x] Corrigir a regressão `pathRegexp is not a function` introduzida pela atualização de segurança e revalidar o servidor de desenvolvimento.
 - [ ] Validar o produto ampliado e publicar a evolução profissional no GitHub.
