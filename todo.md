@@ -52,7 +52,7 @@
 - [x] Criar testes ponta a ponta para reducers com papéis operacionais, permissões permitidas ou negadas e geração de `audit_logs`.
 - [x] Documentar e validar visualmente as telas e ações disponíveis para cada papel operacional.
 - [ ] Validar visualmente a matriz de navegação e ações bloqueadas no painel web para `admin`, `operator`, `auditor`, `technician` e `viewer`.
-- [ ] Alinhar as identidades autenticadas do painel web aos cinco papéis operacionais para permitir validação visual completa.
+- [x] Alinhar as identidades autenticadas do painel web aos cinco papéis operacionais para permitir validação visual completa.
 - [ ] Validar a interface desktop com identidades de papéis distintos para revisão de análise e governança biométrica.
 - [x] Atualizar a documentação operacional com evidências verificáveis da validação visual por papel e suas limitações.
 - [x] Implementar e documentar enforcement adicional de retenção e privacidade para eventos analíticos, evidências e exportações.
@@ -77,6 +77,7 @@
 - [x] Integrar a assinatura Ed25519 à exportação de evidência, registrar `signedExportRef` no SpacetimeDB e validar a cadeia completa.
 - [x] Validar o SHA-256 do arquivo no fluxo de exportação desktop antes de registrar a assinatura no SpacetimeDB.
 - [x] Corrigir o contrato do resumo de telemetria após salvar e ampliar as métricas técnicas de serviço local.
+- [ ] Documentar no repositório a matriz visual do painel web, com ações restritas efetivamente verificadas por papel.
 - [x] Avaliar e corrigir vulnerabilidades transitivas de produção com atualização compatível, validação integral e registro de impacto.
 - [x] Corrigir a regressão `pathRegexp is not a function` introduzida pela atualização de segurança e revalidar o servidor de desenvolvimento.
 - [ ] Validar o produto ampliado e publicar a evolução profissional no GitHub.
