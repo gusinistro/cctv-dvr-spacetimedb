@@ -63,15 +63,16 @@
 - [x] Criar automação de qualidade, segurança de dependências, releases versionadas e documentação de operação empresarial.
 - [x] Implementar workflow de release versionada por tag com notas geradas e artefatos desktop validados.
 - [x] Publicar e verificar o processo de release versionada e a documentação no repositório GitHub.
-- [ ] Executar e verificar uma release real por tag, incluindo notas geradas e artefatos desktop publicados.
-- [ ] Documentar no repositório a tag executada, as validações, os artefatos gerados e limitações observadas.
-- [ ] Corrigir o conflito de versão do pnpm na esteira de release e repetir a execução por tag.
-- [ ] Provisionar a CLI SpacetimeDB na validação contínua e repetir a release versionada.
-- [ ] Adicionar os ícones nativos obrigatórios ao pacote desktop e validar a distribuição Windows.
-- [ ] Alinhar os manifestos web e desktop ao número da primeira release de produção validada.
-- [ ] Corrigir o contexto Git ausente na etapa de publicação das notas geradas e executar novamente a release v1.0.5.
-- [ ] Corrigir a seleção de artefatos para enviar apenas arquivos de pacote à release gerada.
-- [ ] Tornar o empacotamento Windows tolerante a falhas transitórias de download do NSIS e repetir a release.
+- [x] Executar e verificar uma release real por tag, incluindo notas geradas e artefatos desktop publicados.
+- [x] Documentar no repositório a tag executada, as validações, os artefatos gerados e limitações observadas.
+- [x] Corrigir o conflito de versão do pnpm na esteira de release e repetir a execução por tag.
+- [x] Provisionar a CLI SpacetimeDB na validação contínua e repetir a release versionada.
+- [x] Adicionar os ícones nativos obrigatórios ao pacote desktop e validar a distribuição Windows.
+- [x] Alinhar os manifestos web e desktop ao número da primeira release de produção validada.
+- [x] Corrigir o contexto Git ausente na etapa de publicação das notas geradas e executar novamente a release v1.0.5.
+- [x] Corrigir a seleção de artefatos para enviar apenas arquivos de pacote à release gerada.
+- [x] Tornar o empacotamento Windows tolerante a falhas transitórias de download do NSIS e repetir a release.
+- [ ] Sincronizar `docs/release-v1.0.5-validation.md` para o repositório publicado e confirmar sua disponibilidade no GitHub.
 - [x] Avaliar e corrigir vulnerabilidades transitivas de produção com atualização compatível, validação integral e registro de impacto.
 - [x] Corrigir a regressão `pathRegexp is not a function` introduzida pela atualização de segurança e revalidar o servidor de desenvolvimento.
 - [ ] Validar o produto ampliado e publicar a evolução profissional no GitHub.
