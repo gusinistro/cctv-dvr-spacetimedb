@@ -89,6 +89,6 @@
 - [x] Corrigir a regressão `pathRegexp is not a function` introduzida pela atualização de segurança e revalidar o servidor de desenvolvimento.
 - [x] Validar ações web por papel com identidade reativa isolada e registrar os resultados permitidos e bloqueados.
 - [x] Sincronizar no GitHub a prova reativa isolada e a matriz web final documentada por papel.
-- [ ] Validar o produto ampliado e publicar a evolução profissional no GitHub.
-- [ ] Sincronizar no clone publicado do GitHub as mudanças finais de validação desktop, documentação operacional, scripts e `todo.md`, com commit e push verificáveis.
-- [ ] Registrar no repositório publicado a validação final executada, incluindo `desktop:validate-roles` e a base isolada utilizada.
+- [x] Validar o produto ampliado e publicar a evolução profissional no GitHub.
+- [x] Sincronizar no clone publicado do GitHub as mudanças finais de validação desktop, documentação operacional, scripts e `todo.md`, com commit e push verificáveis.
+- [x] Registrar no repositório publicado a validação final executada, incluindo `desktop:validate-roles` e a base isolada utilizada.
