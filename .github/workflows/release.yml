@@ -83,4 +83,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
-        run: gh release create "$RELEASE_TAG" release-artifacts/**/* --title "SpaceVision DVR $RELEASE_TAG" --generate-notes
+        run: find release-artifacts -type f -print0 | xargs -0 gh release create "$RELEASE_TAG" --title "SpaceVision DVR $RELEASE_TAG" --generate-notes
