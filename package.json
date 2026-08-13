@@ -16,6 +16,7 @@
     "spacetime:publish-local": "spacetime publish --server http://127.0.0.1:3001 --anonymous --yes --module-path spacetimedb --build-options='--lint-dir=' spacevision-dvr-local",
     "spacetime:bindings": "spacetime generate --lang typescript --out-dir client/src/lib/spacetimedb-bindings --module-path spacetimedb --build-options='--lint-dir='",
     "spacetime:validate-analysis": "tsx scripts/validate-local-analysis-flow.ts",
+    "desktop:validate-roles": "tsx scripts/validate-local-analysis-flow.ts",
     "desktop:web:dev": "vite --config desktop/vite.config.ts",
     "desktop:web:build": "vite build --config desktop/vite.config.ts",
     "desktop:dev": "tauri dev --config desktop/src-tauri/tauri.conf.json",
