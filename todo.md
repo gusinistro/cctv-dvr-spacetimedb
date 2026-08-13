@@ -53,6 +53,9 @@
 - [x] Documentar e validar visualmente as telas e ações disponíveis para cada papel operacional.
 - [ ] Validar visualmente a matriz de navegação e ações bloqueadas no painel web para `admin`, `operator`, `auditor`, `technician` e `viewer`.
 - [x] Registrar a limitação da validação interativa dos papéis autenticados, pulada pelo usuário nesta rodada.
+- [x] Adicionar seleção de papel exclusiva para desenvolvimento, sem efeito em builds de produção, para validação visual reproduzível.
+- [x] Adicionar prévia de papel exclusiva para desenvolvimento ao desktop, sem alterar a identidade reativa nem permissões de produção.
+- [x] Corrigir a renderização do painel de telemetria na governança desktop e retestar a prévia visual.
 - [x] Alinhar as identidades autenticadas do painel web aos cinco papéis operacionais para permitir validação visual completa.
 - [ ] Validar a interface desktop com identidades de papéis distintos para revisão de análise e governança biométrica.
 - [x] Atualizar a documentação operacional com evidências verificáveis da validação visual por papel e suas limitações.
@@ -81,4 +84,5 @@
 - [ ] Documentar no repositório a matriz visual do painel web, com ações restritas efetivamente verificadas por papel.
 - [x] Avaliar e corrigir vulnerabilidades transitivas de produção com atualização compatível, validação integral e registro de impacto.
 - [x] Corrigir a regressão `pathRegexp is not a function` introduzida pela atualização de segurança e revalidar o servidor de desenvolvimento.
+- [ ] Validar ações web por papel com identidade reativa isolada e registrar os resultados permitidos e bloqueados.
 - [ ] Validar o produto ampliado e publicar a evolução profissional no GitHub.

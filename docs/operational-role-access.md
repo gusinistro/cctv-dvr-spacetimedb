@@ -46,3 +46,23 @@ O comando `pnpm test` executado nessa validação aprovou **11 testes**, incluin
 Na sessão de navegador sem autenticação, o papel `viewer` foi aberto na tela **Eventos**. Os alertas pendentes apareceram identificados como **Somente leitura**, e nenhum botão de reconhecimento, exportação, alteração de retenção, manutenção ou configuração foi renderizado. Esta é uma prova visual e interativa do limite de leitura. Para os demais papéis, a navegação foi validada visualmente e os comandos incompatíveis foram validados pelo contrato automatizado; a captura interativa de cada botão oculto ou desabilitado permanece pendente para uma sessão autenticada dedicada por papel.
 
 > **Limitação aceita nesta rodada.** O usuário optou explicitamente por pular a autenticação manual necessária para sessões interativas de `admin`, `operator`, `auditor` e `technician`. Consequentemente, essa evidência permanece limitada a capturas de navegação, à interação de `viewer` e aos testes de contrato. Nenhuma conclusão adicional deve ser inferida como teste manual de clique para esses quatro papéis.
+
+## Prévia desktop de desenvolvimento
+
+O desktop disponibiliza `?role=<papel>` **somente quando executado pelo servidor Vite de desenvolvimento**. A prévia altera a visibilidade e o estado habilitado dos controles, mas preserva a identidade reativa efetiva para chamadas ao SpacetimeDB e Tauri; por isso, não se converte em mecanismo de elevação de privilégio nem é incluída em builds de produção.
+
+Na validação visual, `admin` exibiu os controles de consentimento, política biométrica, exportação de evidência assinada e telemetria. No mesmo caminho de tela, `viewer` mostrou as mensagens de bloqueio para exportação e governança. A inspeção do DOM confirmou que os botões **Assinar, verificar e exportar** e **Salvar política local** estavam desabilitados no papel `viewer`. A renderização inicial da governança também revelou e corrigiu a importação ausente dos hooks React no painel de telemetria.
+
+## Prévia web de desenvolvimento
+
+O painel web aceita `?role=admin|operator|auditor|technician|viewer` somente em desenvolvimento. A sobreposição altera exclusivamente a apresentação e os guards do cliente para tornar a validação de interface reproduzível; as chamadas reativas continuam usando a identidade efetiva da sessão, e a lógica é eliminada de builds de produção.
+
+| Papel em prévia | Evidência visual verificada | Resultado |
+|---|---|---|
+| `admin` | Navegação completa, incluindo câmeras e configurações. | Áreas administrativas presentes. |
+| `operator` | Tela de eventos com botões **Reconhecer** em alertas pendentes. | Ação operacional apresentada; a chamada reativa conserva a identidade efetiva do backend. |
+| `auditor` | Eventos pendentes exibidos como **Somente leitura**. | Reconhecimento não é apresentado. |
+| `technician` | Navegação limitada a monitoramento e eventos. | Relatórios e controles administrativos ausentes. |
+| `viewer` | Navegação mínima e eventos somente leitura. | Controles mutáveis ausentes. |
+
+Essa evidência fecha a validação visual da matriz de interface. A autorização efetiva permanece comprovada pela suíte de guards e reducers, que é a fonte de verdade para mutações compartilhadas.
