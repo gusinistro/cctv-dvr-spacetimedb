@@ -113,8 +113,8 @@ export function createDemoStore(): CctvStore {
       }
       emit();
     },
-    async reportCameraHealth(cameraId, success, maintenanceNote, maintenanceStatus) {
-      snapshot = { ...snapshot, cameraHealth: snapshot.cameraHealth.map((health) => health.cameraId === cameraId ? { ...health, consecutiveFailures: success ? 0 : health.consecutiveFailures + 1, lastCheckedAt: Date.now(), lastSuccessAt: success ? Date.now() : health.lastSuccessAt, maintenanceNote, maintenanceStatus } : health) };
+    async reportCameraHealth(cameraId, success, maintenanceNote, maintenanceStatus, maintenanceDueAt) {
+      snapshot = { ...snapshot, cameraHealth: snapshot.cameraHealth.map((health) => health.cameraId === cameraId ? { ...health, consecutiveFailures: success ? 0 : health.consecutiveFailures + 1, lastCheckedAt: Date.now(), lastSuccessAt: success ? Date.now() : health.lastSuccessAt, maintenanceNote, maintenanceStatus, maintenanceDueAt } : health) };
       emit();
     },
     async setRetention(policy: RetentionPolicy) {

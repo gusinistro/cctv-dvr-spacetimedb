@@ -40,10 +40,10 @@
 - [x] Publicar a extensão SpaceVision Desktop e o workflow de builds multiplataforma no repositório GitHub selecionado.
 - [x] Auditar arquitetura, segurança, UX e confiabilidade contra requisitos de uma operação CCTV profissional.
 - [x] Implementar gestão multi-instalação, inventário operacional de câmeras, tags, saúde e manutenção preventiva.
-- [ ] Implementar comandos e interfaces para criar, editar, alternar e visualizar múltiplas instalações no web e desktop.
+- [x] Implementar comandos e interfaces para criar, editar, alternar e visualizar múltiplas instalações no web e desktop.
 - [x] Criar fluxo operacional de manutenção preventiva com vencimento, estado e ações por câmera além da nota de diagnóstico.
 - [x] Cobrir multi-instalação, etiquetas e saúde/manutenção com testes automatizados de store e reducers reativos.
-- [ ] Adicionar ações web e desktop para transicionar manutenção preventiva por câmera e definir vencimento.
+- [x] Adicionar ações web e desktop para transicionar manutenção preventiva por câmera e definir vencimento.
 - [x] Criar cobertura automatizada dos reducers reativos para instalações, etiquetas e saúde ou manutenção.
 - [x] Fortalecer o cofre de credenciais local, a trilha de auditoria e a base de papéis operacionais no módulo reativo.
 - [x] Integrar papéis operacionais à interface desktop e às permissões visíveis de revisão e governança.
@@ -52,13 +52,14 @@
 - [x] Criar testes ponta a ponta para reducers com papéis operacionais, permissões permitidas ou negadas e geração de `audit_logs`.
 - [x] Documentar e validar visualmente as telas e ações disponíveis para cada papel operacional.
 - [ ] Validar visualmente a matriz de navegação e ações bloqueadas no painel web para `admin`, `operator`, `auditor`, `technician` e `viewer`.
+- [ ] Alinhar as identidades autenticadas do painel web aos cinco papéis operacionais para permitir validação visual completa.
 - [ ] Validar a interface desktop com identidades de papéis distintos para revisão de análise e governança biométrica.
-- [ ] Atualizar a documentação operacional com evidências verificáveis da validação visual por papel e suas limitações.
+- [x] Atualizar a documentação operacional com evidências verificáveis da validação visual por papel e suas limitações.
 - [x] Implementar e documentar enforcement adicional de retenção e privacidade para eventos analíticos, evidências e exportações.
 - [x] Implementar cadeia de evidências com integridade de clipes, exportação assinada e contexto de eventos revisáveis.
-- [ ] Aplicar enforcement de privacidade a exportações analíticas e testar remoção efetiva de dados expirados.
-- [ ] Implementar assinatura real de pacotes de evidência ou clipe e validar a cadeia completa além de metadados.
-- [ ] Adicionar observabilidade de serviço, diagnósticos, telemetria local opcional, cópias de segurança e recuperação documentada.
+- [x] Aplicar enforcement de privacidade a exportações analíticas e testar remoção efetiva de dados expirados.
+- [x] Implementar assinatura real de pacotes de evidência ou clipe e validar a cadeia completa além de metadados.
+- [x] Adicionar observabilidade de serviço, diagnósticos, telemetria local opcional, cópias de segurança e recuperação documentada.
 - [x] Elevar a experiência desktop com fluxos de onboarding, operação por atalhos, estados vazios e acessibilidade.
 - [x] Criar automação de qualidade, segurança de dependências, releases versionadas e documentação de operação empresarial.
 - [x] Implementar workflow de release versionada por tag com notas geradas e artefatos desktop validados.
@@ -73,6 +74,9 @@
 - [x] Corrigir a seleção de artefatos para enviar apenas arquivos de pacote à release gerada.
 - [x] Tornar o empacotamento Windows tolerante a falhas transitórias de download do NSIS e repetir a release.
 - [x] Sincronizar `docs/release-v1.0.5-validation.md` para o repositório publicado e confirmar sua disponibilidade no GitHub.
+- [x] Integrar a assinatura Ed25519 à exportação de evidência, registrar `signedExportRef` no SpacetimeDB e validar a cadeia completa.
+- [x] Validar o SHA-256 do arquivo no fluxo de exportação desktop antes de registrar a assinatura no SpacetimeDB.
+- [x] Corrigir o contrato do resumo de telemetria após salvar e ampliar as métricas técnicas de serviço local.
 - [x] Avaliar e corrigir vulnerabilidades transitivas de produção com atualização compatível, validação integral e registro de impacto.
 - [x] Corrigir a regressão `pathRegexp is not a function` introduzida pela atualização de segurança e revalidar o servidor de desenvolvimento.
 - [ ] Validar o produto ampliado e publicar a evolução profissional no GitHub.
