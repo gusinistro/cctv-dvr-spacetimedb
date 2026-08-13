@@ -49,6 +49,24 @@ describe("controle de acesso e filtros do CCTV", () => {
     await expect(guardCommands("technician", commands).upsertCamera({ installationId: 1, name: "Teste", location: "Laboratório", zone: "QA", tags: "teste", protocol: "RTSP", streamUrl: "rtsp://teste", status: "online" })).rejects.toThrow("restrita ao papel necessário");
   });
 
+  it("mantém as ações administrativas ocultas no painel também bloqueadas por contrato em cada papel operacional", async () => {
+    const commands: CctvCommands = {
+      upsertInstallation: vi.fn().mockResolvedValue(undefined),
+      upsertCamera: vi.fn().mockResolvedValue(undefined),
+      reportCameraHealth: vi.fn().mockResolvedValue(undefined),
+      setRetention: vi.fn().mockResolvedValue(undefined),
+      acknowledgeEvent: vi.fn().mockResolvedValue(undefined),
+      setCameraStatus: vi.fn().mockResolvedValue(undefined),
+    };
+    const camera = { installationId: 1, name: "Teste", location: "Laboratório", zone: "QA", tags: "teste", protocol: "RTSP" as const, streamUrl: "rtsp://teste", status: "online" as const };
+    await expect(guardCommands("viewer", commands).upsertCamera(camera)).rejects.toThrow("restrita ao papel necessário");
+    await expect(guardCommands("operator", commands).setRetention({ cameraId: 1, retentionDays: 30, quality: "1080p", recordingMode: "motion" })).rejects.toThrow("restrita ao papel necessário");
+    await expect(guardCommands("auditor", commands).reportCameraHealth(1, false, "teste", "scheduled")).rejects.toThrow("restrita ao papel necessário");
+    await expect(guardCommands("technician", commands).acknowledgeEvent(1)).rejects.toThrow("restrita ao papel necessário");
+    await guardCommands("admin", commands).upsertCamera(camera);
+    expect(commands.upsertCamera).toHaveBeenCalledWith(camera);
+  });
+
   it("resolve automaticamente a instância local e mantém fallback sem destino em produção", () => {
     expect(resolveSpacetimeConnection({ development: true })).toEqual({ uri: "ws://127.0.0.1:3001", database: "spacevision-dvr-local" });
     expect(resolveSpacetimeConnection({ uri: "wss://cctv.example", database: "dvr-prod", development: true })).toEqual({ uri: "wss://cctv.example", database: "dvr-prod" });
