@@ -51,7 +51,7 @@
 - [x] Integrar os papéis profissionais também às rotas e fluxos web relevantes, além dos controles do desktop.
 - [x] Criar testes ponta a ponta para reducers com papéis operacionais, permissões permitidas ou negadas e geração de `audit_logs`.
 - [x] Documentar e validar visualmente as telas e ações disponíveis para cada papel operacional.
-- [ ] Validar visualmente a matriz de navegação e ações bloqueadas no painel web para `admin`, `operator`, `auditor`, `technician` e `viewer`.
+- [x] Validar visualmente a matriz de navegação e ações bloqueadas no painel web para `admin`, `operator`, `auditor`, `technician` e `viewer`.
 - [x] Registrar a limitação da validação interativa dos papéis autenticados, pulada pelo usuário nesta rodada.
 - [x] Adicionar seleção de papel exclusiva para desenvolvimento, sem efeito em builds de produção, para validação visual reproduzível.
 - [x] Adicionar prévia de papel exclusiva para desenvolvimento ao desktop, sem alterar a identidade reativa nem permissões de produção.
@@ -81,8 +81,9 @@
 - [x] Integrar a assinatura Ed25519 à exportação de evidência, registrar `signedExportRef` no SpacetimeDB e validar a cadeia completa.
 - [x] Validar o SHA-256 do arquivo no fluxo de exportação desktop antes de registrar a assinatura no SpacetimeDB.
 - [x] Corrigir o contrato do resumo de telemetria após salvar e ampliar as métricas técnicas de serviço local.
-- [ ] Documentar no repositório a matriz visual do painel web, com ações restritas efetivamente verificadas por papel.
+- [x] Documentar no repositório a matriz visual do painel web, com ações restritas efetivamente verificadas por papel.
 - [x] Avaliar e corrigir vulnerabilidades transitivas de produção com atualização compatível, validação integral e registro de impacto.
 - [x] Corrigir a regressão `pathRegexp is not a function` introduzida pela atualização de segurança e revalidar o servidor de desenvolvimento.
-- [ ] Validar ações web por papel com identidade reativa isolada e registrar os resultados permitidos e bloqueados.
+- [x] Validar ações web por papel com identidade reativa isolada e registrar os resultados permitidos e bloqueados.
+- [ ] Sincronizar no GitHub a prova reativa isolada e a matriz web final documentada por papel.
 - [ ] Validar o produto ampliado e publicar a evolução profissional no GitHub.

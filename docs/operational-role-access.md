@@ -66,3 +66,17 @@ O painel web aceita `?role=admin|operator|auditor|technician|viewer` somente em 
 | `viewer` | Navegação mínima e eventos somente leitura. | Controles mutáveis ausentes. |
 
 Essa evidência fecha a validação visual da matriz de interface. A autorização efetiva permanece comprovada pela suíte de guards e reducers, que é a fonte de verdade para mutações compartilhadas.
+
+## Prova reativa isolada por identidade
+
+Além das prévias visuais, a validação `pnpm spacetime:validate-analysis` foi executada em uma base SpacetimeDB local exclusiva. Ela criou cinco conexões independentes, aplicou papéis reais no registro `actors` e executou reducers contra essas identidades. O resultado verificável da execução foi `auditCount: 15`, com a cadeia de evidência Ed25519 e a exclusão por retenção também aprovadas.
+
+| Papel reativo | Operação exercitada | Resultado observado |
+|---|---|---|
+| `admin` | Configuração inicial, política biométrica, análise e retenção. | Permitida e auditada. |
+| `operator` | Registro e reconhecimento de evento. | Permitidos; `system_event_logged` e `event_acknowledged` apareceram no log de auditoria. |
+| `auditor` | Reconhecimento de evento. | Recusado; exportação assinada de evidência permaneceu permitida. |
+| `technician` | Relato de saúde e manutenção; reconhecimento de evento. | Diagnóstico permitido; reconhecimento recusado. |
+| `viewer` | Registro de evento de sistema. | Recusado. |
+
+> A combinação da prévia de interface, dos testes de guard e desta execução reativa isolada valida tanto a apresentação quanto a autorização efetiva, sem depender de uma sessão manual do usuário.

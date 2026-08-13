@@ -56,6 +56,7 @@ async function main() {
   let operatorSession: any;
   let auditorSession: any;
   let technicianSession: any;
+  let viewerSession: any;
   try {
     await connection.reducers.bootstrapAdmin({ displayName: "Validação Desktop" });
     await applySubscription(connection);
@@ -123,6 +124,24 @@ async function main() {
     await new Promise((resolve) => setTimeout(resolve, 80));
     const health = Array.from(technicianSession.connection.db.cameraHealth.iter()).find((entry: any) => Number(entry.cameraId) === Number(camera.id)) as any;
     if (!health || Number(health.consecutiveFailures) !== 1 || health.maintenanceNote !== "Inspeção preventiva solicitada") throw new Error("O relatório de saúde técnica não foi registrado.");
+    let technicianBlocked = false;
+    try {
+      await technicianSession.connection.reducers.acknowledgeEvent({ id: Number(operationalEvent.id) });
+    } catch {
+      technicianBlocked = true;
+    }
+    if (!technicianBlocked) throw new Error("O técnico não foi bloqueado ao tentar reconhecer um evento.");
+
+    viewerSession = await connect();
+    await viewerSession.connection.reducers.registerViewer({ displayName: "Visualizador de validação" });
+    await applySubscription(viewerSession.connection);
+    let viewerBlocked = false;
+    try {
+      await viewerSession.connection.reducers.logSystemEvent({ cameraId: Number(camera.id), type: "health", severity: "warning", message: "Ação proibida ao visualizador" });
+    } catch {
+      viewerBlocked = true;
+    }
+    if (!viewerBlocked) throw new Error("O visualizador não foi bloqueado ao tentar registrar um evento.");
 
     await connection.reducers.setRetentionPolicy({ cameraId: Number(camera.id), retentionDays: 0, quality: "1080p", recordingMode: "motion" });
     await new Promise((resolve) => setTimeout(resolve, 80));
@@ -134,11 +153,12 @@ async function main() {
     if (!auditActions.includes("system_event_logged") || !auditActions.includes("event_acknowledged")) throw new Error("As ações autorizadas do operador não geraram a trilha de auditoria esperada.");
     const allAuditActions = (Array.from(connection.db.auditLogs.iter()) as any[]).map((entry) => entry.action);
     for (const expectedAction of ["evidence_hashed", "evidence_exported", "camera_health_reported", "retention_enforced"]) if (!allAuditActions.includes(expectedAction)) throw new Error(`Ação auditável ausente: ${expectedAction}`);
-    console.log(JSON.stringify({ ok: true, removedAnalysisEventId: Number(reviewed.id), removedEvidenceId: Number(evidence.id), auditCount: Array.from(connection.db.auditLogs.iter()).length, cameraId: Number(camera.id), classification: reviewed.classification, operatorAuditActions: auditActions, auditorBlocked, technicianHealthFailureCount: Number(health.consecutiveFailures), retentionDeletionVerified: true, signedEvidenceChainVerified: true, signatureAlgorithm: signedFixture.algorithm }));
+    console.log(JSON.stringify({ ok: true, removedAnalysisEventId: Number(reviewed.id), removedEvidenceId: Number(evidence.id), auditCount: Array.from(connection.db.auditLogs.iter()).length, cameraId: Number(camera.id), classification: reviewed.classification, operatorAuditActions: auditActions, auditorBlocked, technicianBlocked, viewerBlocked, technicianHealthFailureCount: Number(health.consecutiveFailures), retentionDeletionVerified: true, signedEvidenceChainVerified: true, signatureAlgorithm: signedFixture.algorithm }));
   } finally {
     operatorSession?.connection.disconnect();
     auditorSession?.connection.disconnect();
     technicianSession?.connection.disconnect();
+    viewerSession?.connection.disconnect();
     connection.disconnect();
   }
 }
