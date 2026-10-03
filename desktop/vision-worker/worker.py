@@ -83,6 +83,9 @@ def read_image(image_path: str) -> tuple[Any | None, str | None]:
     if cv2 is None or np is None:
         return None, "dependencias_de_visao_nao_instaladas"
     path = Path(image_path).expanduser().resolve()
+    allowed_root = Path(os.environ.get("SPACEVISION_MEDIA_DIR", Path.cwd())).expanduser().resolve()
+    if not path.is_relative_to(allowed_root):
+        return None, "caminho_de_imagem_nao_autorizado"
     if not path.is_file():
         return None, "imagem_nao_encontrada"
     image = cv2.imread(str(path))
@@ -131,7 +134,9 @@ def registered_models(manifest_path: Path = MANIFEST_PATH, model_dir: str | None
                 continue
             path = pack.get("path")
             if isinstance(path, str):
-                result[pack["id"]] = {**pack, "path": str((base / path).resolve())}
+                resolved = (base / path).resolve()
+                if resolved.is_relative_to(base):
+                    result[pack["id"]] = {**pack, "path": str(resolved)}
         return result
     except (OSError, json.JSONDecodeError):
         return {}
@@ -242,9 +247,9 @@ def vector_onnx(task: str, image: Any, models: dict[str, Any]) -> dict[str, Any]
 def analyze(command: dict[str, Any]) -> dict[str, Any]:
     tasks = [task for task in command.get("tasks", []) if isinstance(task, str)]
     policy = policy_from(command.get("policy", {}))
+    # Model paths are trust-boundary inputs. Only packs declared in the signed
+    # local manifest are accepted; callers cannot inject an arbitrary ONNX path.
     models = registered_models()
-    if isinstance(command.get("models"), dict):
-        models.update(command["models"])
     image, image_error = read_image(str(command.get("imagePath", "")))
     response: dict[str, Any] = {"kind": "analysis", "at": utc_now(), "reviewRequired": True, "results": [], "blocked": []}
     for task in tasks:
@@ -285,8 +290,14 @@ def handle(command: dict[str, Any]) -> dict[str, Any]:
 
 def main() -> None:
     for line in sys.stdin:
+        if len(line) > 1_048_576:
+            print(json.dumps({"kind": "error", "at": utc_now(), "message": "comando_muito_grande"}, ensure_ascii=False), flush=True)
+            continue
         try:
-            print(json.dumps(handle(json.loads(line)), ensure_ascii=False), flush=True)
+            command = json.loads(line)
+            if not isinstance(command, dict):
+                raise ValueError("comando_deve_ser_objeto")
+            print(json.dumps(handle(command), ensure_ascii=False), flush=True)
         except Exception as error:  # protocol boundary: return a safe error, never a traceback
             print(json.dumps({"kind": "error", "at": utc_now(), "message": str(error)}, ensure_ascii=False), flush=True)
 

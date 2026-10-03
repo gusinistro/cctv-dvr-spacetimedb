@@ -8,3 +8,7 @@ export const ENV = {
   forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
 };
+
+if (ENV.isProduction && ENV.cookieSecret.length < 32) {
+  throw new Error("JWT_SECRET must be configured with at least 32 characters in production");
+}

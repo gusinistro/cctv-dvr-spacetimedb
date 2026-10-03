@@ -13,7 +13,8 @@ function asNumber(value: unknown) {
 
 function makeSpacetimeStore(uri: string, databaseName: string): CctvStore {
   const demo = createDemoStore();
-  let actual: any;
+  let actual: any = null;
+  let demoActive = true;
   let snapshot: SystemSnapshot = { ...demo.getSnapshot(), connected: false, source: "spacetimedb" };
   const listeners = new Set<() => void>();
   const emit = () => listeners.forEach((listener) => listener());
@@ -39,6 +40,10 @@ function makeSpacetimeStore(uri: string, databaseName: string): CctvStore {
     .onConnect((connection, _identity, token) => {
       localStorage.setItem(tokenKey, token);
       actual = connection;
+      if (demoActive) {
+        demo.dispose();
+        demoActive = false;
+      }
       connection.subscriptionBuilder().onApplied(refresh).subscribe([tables.installations, tables.cameras, tables.cameraHealth, tables.evidenceRecords, tables.recordings, tables.events, tables.retentionPolicies]);
       connection.db.installations.onInsert(refresh);
       connection.db.installations.onUpdate(refresh);
@@ -60,10 +65,12 @@ function makeSpacetimeStore(uri: string, databaseName: string): CctvStore {
       connection.db.retentionPolicies.onDelete(refresh);
     })
     .onDisconnect(() => {
+      actual = null;
       snapshot = { ...snapshot, connected: false };
       emit();
     })
     .onConnectError(() => {
+      actual = null;
       snapshot = { ...demo.getSnapshot(), connected: false, source: "demo" };
       emit();
     })
@@ -97,7 +104,7 @@ function makeSpacetimeStore(uri: string, databaseName: string): CctvStore {
       if (!camera) return;
       return this.upsertCamera({ ...camera, id, status });
     },
-    dispose() { actual?.disconnect(); demo.dispose(); listeners.clear(); },
+    dispose() { actual?.disconnect(); if (demoActive) demo.dispose(); listeners.clear(); },
   };
 }
 
