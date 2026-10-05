@@ -155,6 +155,14 @@ export default spacetimedb;
 
 const allowedRoles = ["admin", "operator", "auditor", "viewer", "technician"];
 
+function text(value: string, field: string, max = 256, min = 1) {
+  const normalized = value.trim();
+  if (normalized.length < min || normalized.length > max) {
+    throw new SenderError(`${field} deve ter entre ${min} e ${max} caracteres.`);
+  }
+  return normalized;
+}
+
 function requireAnyRole(ctx: any, roles: string[]) {
   const actor = ctx.db.actors.identity.find(ctx.sender);
   if (!actor || !roles.includes(actor.role)) {
@@ -222,6 +230,7 @@ export const init = spacetimedb.init((ctx) => {
 export const bootstrap_admin = spacetimedb.reducer(
   { displayName: t.string() },
   (ctx, { displayName }) => {
+    displayName = text(displayName, "Nome de exibição", 120);
     if (!ctx.db.actors.iter().next().done) {
       throw new SenderError("O administrador inicial já foi definido.");
     }
@@ -237,6 +246,7 @@ export const bootstrap_admin = spacetimedb.reducer(
 export const register_viewer = spacetimedb.reducer(
   { displayName: t.string() },
   (ctx, { displayName }) => {
+    displayName = text(displayName, "Nome de exibição", 120);
     if (ctx.db.actors.identity.find(ctx.sender)) return;
     ctx.db.actors.insert({
       identity: ctx.sender,
@@ -295,6 +305,12 @@ export const upsert_camera = spacetimedb.reducer(
   },
   (ctx, input) => {
     requireAdmin(ctx);
+    text(input.name, "Nome da câmera", 120);
+    text(input.location, "Localização", 180);
+    text(input.zone, "Zona", 80);
+    text(input.tags, "Etiquetas", 400, 0);
+    text(input.streamUrl, "URL do stream", 2048);
+    if (!["RTSP", "ONVIF"].includes(input.protocol)) throw new SenderError("Protocolo de câmera inválido.");
     if (input.status !== "online" && input.status !== "offline") {
       throw new SenderError("Status de câmera inválido.");
     }
@@ -427,6 +443,8 @@ export const mark_evidence_exported = spacetimedb.reducer(
     const evidence = ctx.db.evidenceRecords.id.find(input.id);
     if (!evidence) throw new SenderError("Evidência não encontrada.");
     if (!input.signedExportRef || !input.signatureAlgorithm) throw new SenderError("Exportação exige referência assinada e algoritmo de assinatura.");
+    text(input.signedExportRef, "Referência de exportação", 512);
+    if (input.signatureAlgorithm !== "Ed25519") throw new SenderError("Algoritmo de assinatura inválido.");
     ctx.db.evidenceRecords.id.update({ ...evidence, exportedAt: ctx.timestamp, exportedBy: ctx.sender, signedExportRef: input.signedExportRef, signatureAlgorithm: input.signatureAlgorithm });
     audit(ctx, "evidence_exported", `evidence:${evidence.id}`, JSON.stringify({ signedExportRef: input.signedExportRef, signatureAlgorithm: input.signatureAlgorithm }));
   },
