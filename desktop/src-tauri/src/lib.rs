@@ -40,6 +40,16 @@ struct RtspCapture { session_id: String, camera_name: String, directory: String,
 
 #[derive(Default)]
 struct CaptureRegistry { children: Mutex<HashMap<String, Child>> }
+impl Drop for CaptureRegistry {
+  fn drop(&mut self) {
+    if let Ok(children) = self.children.get_mut() {
+      for (_, mut child) in children.drain() {
+        let _ = child.kill();
+        let _ = child.wait();
+      }
+    }
+  }
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -212,6 +222,13 @@ fn worker_path(app: &tauri::AppHandle) -> PathBuf {
   PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../vision-worker/worker.py")
 }
 
+fn validate_media_path(app: &tauri::AppHandle, path: &str) -> Result<PathBuf, String> {
+  let root = app.path().app_data_dir().map_err(|error| error.to_string())?.canonicalize().map_err(|error| error.to_string())?;
+  let candidate = PathBuf::from(path).canonicalize().map_err(|error| format!("Imagem local inválida: {error}"))?;
+  if !candidate.starts_with(&root) { return Err("A análise só pode ler mídia dentro do diretório de dados do SpaceVision.".to_string()); }
+  Ok(candidate)
+}
+
 #[tauri::command]
 fn discover_onvif_devices(timeout_ms: u64) -> Result<Vec<OnvifDevice>, String> {
   let socket = UdpSocket::bind("0.0.0.0:0").map_err(|error| error.to_string())?;
@@ -299,16 +316,21 @@ fn stop_rtsp_capture(registry: tauri::State<CaptureRegistry>, session_id: String
 }
 
 #[tauri::command]
-fn analyze_snapshot(app: tauri::AppHandle, request: serde_json::Value) -> Result<serde_json::Value, String> {
+fn analyze_snapshot(app: tauri::AppHandle, mut request: serde_json::Value) -> Result<serde_json::Value, String> {
   let script = worker_path(&app);
   if !script.is_file() { return Err("Worker local de visão não encontrado. Empacote-o como sidecar na distribuição final.".to_string()); }
+  let image_path = request.get("imagePath").and_then(|value| value.as_str()).ok_or("imagePath é obrigatório")?;
+  let safe_image = validate_media_path(&app, image_path)?;
+  request["imagePath"] = serde_json::Value::String(safe_image.to_string_lossy().to_string());
   let started = Instant::now();
   let interpreter = if cfg!(target_os = "windows") { "python" } else { "python3" };
-  let mut child = Command::new(interpreter).arg(script).stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().map_err(|error| format!("Worker local não iniciou: {error}"))?;
+  let media_root = app.path().app_data_dir().map_err(|error| error.to_string())?;
+  let mut child = Command::new(interpreter).arg(script).env("SPACEVISION_MEDIA_DIR", &media_root).stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().map_err(|error| format!("Worker local não iniciou: {error}"))?;
   let payload = serde_json::to_string(&request).map_err(|error| error.to_string())?;
   child.stdin.as_mut().ok_or("Entrada do worker indisponível.")?.write_all(format!("{payload}\n").as_bytes()).map_err(|error| error.to_string())?;
   let output = child.wait_with_output().map_err(|error| error.to_string())?;
   if !output.status.success() { return Err(format!("Worker local encerrou com status {}.", output.status)); }
+  if output.stdout.len() > 4 * 1024 * 1024 { return Err("Resposta do worker excede o limite de 4 MiB.".to_string()); }
   let line = String::from_utf8(output.stdout).map_err(|error| error.to_string())?.lines().next().ok_or("Worker não retornou resultado.")?.to_string();
   let result = serde_json::from_str(&line).map_err(|error| format!("Resposta inválida do worker: {error}"))?;
   let _ = record_technical_telemetry(&app, "analysis_snapshot", true, started.elapsed().as_millis());
@@ -316,8 +338,8 @@ fn analyze_snapshot(app: tauri::AppHandle, request: serde_json::Value) -> Result
 }
 
 #[tauri::command]
-fn sign_evidence_package(path: String) -> Result<EvidenceSignature, String> {
-  let evidence_path = PathBuf::from(&path);
+fn sign_evidence_package(app: tauri::AppHandle, path: String) -> Result<EvidenceSignature, String> {
+  let evidence_path = validate_media_path(&app, &path)?;
   if !evidence_path.is_file() { return Err("Selecione um arquivo de evidência local existente para assinar.".to_string()); }
   let evidence_ref = evidence_path.file_name().and_then(|value| value.to_str()).ok_or("Nome de evidência inválido.")?.to_string();
   let sha256 = sha256_file(&evidence_path)?;
@@ -331,9 +353,10 @@ fn sign_evidence_package(path: String) -> Result<EvidenceSignature, String> {
 }
 
 #[tauri::command]
-fn verify_evidence_package(path: String, signature_ref: String) -> Result<bool, String> {
-  let evidence_path = PathBuf::from(path);
-  let signature: EvidenceSignature = serde_json::from_slice(&fs::read(signature_ref).map_err(|error| format!("Manifesto de assinatura não disponível: {error}"))?).map_err(|error| format!("Manifesto de assinatura inválido: {error}"))?;
+fn verify_evidence_package(app: tauri::AppHandle, path: String, signature_ref: String) -> Result<bool, String> {
+  let evidence_path = validate_media_path(&app, &path)?;
+  let signature_path = validate_media_path(&app, &signature_ref)?;
+  let signature: EvidenceSignature = serde_json::from_slice(&fs::read(signature_path).map_err(|error| format!("Manifesto de assinatura não disponível: {error}"))?).map_err(|error| format!("Manifesto de assinatura inválido: {error}"))?;
   if sha256_file(&evidence_path)? != signature.sha256 { return Ok(false); }
   Ok(verify_signature(&signature).is_ok())
 }
